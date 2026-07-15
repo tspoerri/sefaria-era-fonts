@@ -52,7 +52,7 @@ export default function SourceCard({
     fontEntry && fontEntry.flag ? FLAG_DESCRIPTIONS[fontEntry.flag] : null;
 
   const heHtml = sanitizeHtml(flattenText(he));
-  const englishText = flattenText(text);
+  const enHtml = sanitizeHtml(flattenText(text));
 
   return (
     <div className="source-card">
@@ -115,10 +115,12 @@ export default function SourceCard({
               dangerouslySetInnerHTML={{ __html: heHtml }}
             />
           ) : null}
-          {englishText ? (
-            <p className="source-english" dir="ltr">
-              {englishText}
-            </p>
+          {enHtml ? (
+            <p
+              className="source-english"
+              dir="ltr"
+              dangerouslySetInnerHTML={{ __html: enHtml }}
+            />
           ) : null}
         </div>
       )}

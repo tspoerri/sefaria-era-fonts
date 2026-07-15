@@ -1,0 +1,53 @@
+/*
+ * @font-face declarations for self-hosted, free/openly-licensed Hebrew fonts.
+ * Files live in public/fonts/ (served from /fonts/... at the app root).
+ * See docs/FONTS.md for full licensing detail and provenance of every file here.
+ *
+ * NOT included here (loaded via Google Fonts <link> in index.html instead):
+ *   Frank Ruhl Libre, Noto Sans Hebrew
+ *
+ * NOT shipped (see docs/FONTS.md "skipped" notes):
+ *   SBL Hebrew — SBL's license restricts commercial use (free for individual
+ *   scholars/non-profit only), so it doesn't meet the OFL/GPL+FE/"explicitly free"
+ *   bar for this project. Skipped rather than guessed at.
+ */
+
+@font-face {
+  font-family: "Stam Ashkenaz CLM";
+  src: url("/fonts/StamAshkenazCLM.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Keter YG";
+  src: url("/fonts/KeterYG-Medium.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Shofar";
+  src: url("/fonts/ShofarRegular.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Ezra SIL";
+  src: url("/fonts/EzraSIL.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Mekorot Rashi";
+  src: url("/fonts/Mekorot-Rashi.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
