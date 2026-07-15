@@ -65,12 +65,46 @@ body {
   gap: 0.5rem;
 }
 
-.add-source-row input {
+.add-source-combobox {
+  position: relative;
   flex: 1;
+}
+
+.add-source-combobox input {
+  width: 100%;
   padding: 0.6rem 0.75rem;
   font-size: 1rem;
   border: 1px solid #ccc;
   border-radius: 6px;
+}
+
+.add-source-suggestions {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 0.25rem;
+  list-style: none;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  max-height: 16rem;
+  overflow-y: auto;
+}
+
+.add-source-suggestions li {
+  padding: 0.45rem 0.6rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+.add-source-suggestions li.is-highlighted,
+.add-source-suggestions li:hover {
+  background: #eee;
 }
 
 .add-source-row button {
