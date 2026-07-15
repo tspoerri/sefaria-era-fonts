@@ -1,6 +1,7 @@
 // Thin client for Sefaria's public REST API. No backend, no auth.
 
 import { generateHebrewVariants, hasNikud, isHebrewText } from '../lib/hebrewSearch.js'
+import { generateTranslitVariants } from '../lib/translitVariants.js'
 
 const TEXTS_BASE = 'https://www.sefaria.org/api/texts/'
 const INDEX_BASE = 'https://www.sefaria.org/api/v2/index/'
@@ -119,30 +120,60 @@ function mergeSuggestions(lists) {
   return merged
 }
 
-// Same as fetchNameSuggestions, but for Hebrew queries that come up short it
-// also tries alternate spellings built from commonly confused/omitted
-// letters (see src/lib/hebrewSearch.js) — e.g. a query spelled with "כ"
-// where the real title uses "ח" (both sound "kh") still surfaces a match.
+// Same as fetchNameSuggestions, but for queries that come up short it also
+// tries alternate spellings, in whichever direction matches the script:
+// - Hebrew queries get letter-level variants built from commonly
+//   confused/omitted letters (see src/lib/hebrewSearch.js) — e.g. a query
+//   spelled with "כ" where the real title uses "ח" (both sound "kh") still
+//   surfaces a match.
+// - Latin/romanized queries get Ashkenazi -> Sephardi/canonical spelling
+//   variants (see src/lib/translitVariants.js) — e.g. "Beraishis" or "Rashi
+//   on Shemos" still surfaces "Bereishit"/"Rashi on Shemot", which Sefaria's
+//   own name index doesn't resolve on its own.
 // The direct query always runs first and its results are never displaced;
-// variants only fill in when the direct query alone isn't enough.
+// variants only fill in gaps, merged in after direct's own results.
 // `rawQuery` is the pre-normalization input, used only to check whether the
-// user pasted in vocalized text (nikud) — if so, it's almost certainly
-// copied from a correctly-spelled source rather than typed, so the typo
-// fallback is skipped.
+// user pasted in vocalized Hebrew text (nikud) — if so, it's almost
+// certainly copied from a correctly-spelled source rather than typed, so the
+// Hebrew typo fallback is skipped.
+//
+// The Hebrew and Latin branches use different triggers for the fallback.
+// Hebrew: only bother once direct comes up short (< 3 results) — Sefaria's
+// index handles most Hebrew spelling fine, and letter-swap variants are
+// numerous enough that firing them on every keystroke would be wasteful.
+// Latin: always run variants alongside direct, regardless of direct's
+// count. This looks redundant but isn't: live testing against Sefaria's API
+// showed that a bad Ashkenazi-spelled query (e.g. "Rashi on Beraishis",
+// "Tosafos on Brachos") routinely comes back with 3-10 *irrelevant*
+// fuzzy-matched refs (e.g. "Rashi on Amos", "Onkelos Exodus") — so a
+// `direct.length < 3` gate would almost never fire for exactly the
+// compound-title queries this fallback exists to fix. mergeSuggestions
+// still keeps direct's results first, so this can't push a good direct
+// match down or out.
 export async function fetchNameSuggestionsRobust(query, { signal, rawQuery } = {}) {
   const trimmed = (query || '').trim()
   const direct = await fetchNameSuggestions(trimmed, { signal })
 
-  if (direct.length >= 3 || !isHebrewText(trimmed) || hasNikud(rawQuery || '')) {
-    return direct
+  let variants = []
+  if (isHebrewText(trimmed)) {
+    if (direct.length >= 3 || hasNikud(rawQuery || '')) return direct
+    variants = generateHebrewVariants(trimmed)
+  } else if (/[a-z]/i.test(trimmed)) {
+    variants = generateTranslitVariants(trimmed)
   }
 
-  const variants = generateHebrewVariants(trimmed)
   if (variants.length === 0) return direct
 
   const variantResults = await Promise.all(
     variants.map((v) => fetchNameSuggestions(v, { signal }))
   )
 
-  return mergeSuggestions([direct, ...variantResults])
+  // mergeSuggestions fills greedily from the first list up to
+  // MAX_SUGGESTIONS, so if direct alone already has a full 8 results —
+  // which happens even when every one of them is an irrelevant fuzzy match,
+  // as seen with "Rashi on Beraishis" et al above — variant results would
+  // never get a slot. Cap direct's contribution here so there's always room
+  // left for a correct variant match to surface; direct's best (first, per
+  // Sefaria's own ranking) results still lead.
+  return mergeSuggestions([direct.slice(0, 5), ...variantResults])
 }
