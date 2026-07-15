@@ -48,7 +48,10 @@ export default function AddSource({ onAdd, busy, error }) {
       const controller = new AbortController();
       abortRef.current = controller;
       try {
-        const results = await fetchNameSuggestionsRobust(title, { signal: controller.signal });
+        const results = await fetchNameSuggestionsRobust(title, {
+          signal: controller.signal,
+          rawQuery: value,
+        });
         setPendingAddress(address);
         setSuggestions(results);
         setOpen(results.length > 0);

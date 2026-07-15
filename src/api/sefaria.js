@@ -1,6 +1,6 @@
 // Thin client for Sefaria's public REST API. No backend, no auth.
 
-import { generateHebrewVariants, isHebrewText } from '../lib/hebrewSearch.js'
+import { generateHebrewVariants, hasNikud, isHebrewText } from '../lib/hebrewSearch.js'
 
 const TEXTS_BASE = 'https://www.sefaria.org/api/texts/'
 const INDEX_BASE = 'https://www.sefaria.org/api/v2/index/'
@@ -125,11 +125,15 @@ function mergeSuggestions(lists) {
 // where the real title uses "ח" (both sound "kh") still surfaces a match.
 // The direct query always runs first and its results are never displaced;
 // variants only fill in when the direct query alone isn't enough.
-export async function fetchNameSuggestionsRobust(query, { signal } = {}) {
+// `rawQuery` is the pre-normalization input, used only to check whether the
+// user pasted in vocalized text (nikud) — if so, it's almost certainly
+// copied from a correctly-spelled source rather than typed, so the typo
+// fallback is skipped.
+export async function fetchNameSuggestionsRobust(query, { signal, rawQuery } = {}) {
   const trimmed = (query || '').trim()
   const direct = await fetchNameSuggestions(trimmed, { signal })
 
-  if (direct.length >= 3 || !isHebrewText(trimmed)) {
+  if (direct.length >= 3 || !isHebrewText(trimmed) || hasNikud(rawQuery || '')) {
     return direct
   }
 

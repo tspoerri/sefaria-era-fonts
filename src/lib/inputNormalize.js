@@ -1,4 +1,4 @@
-import { stripNikud } from "./hebrewSearch.js";
+import { stripNikud, fixGematriaOrder } from "./hebrewSearch.js";
 
 // Cleans up freeform/pasted source-reference input before it's sent to Sefaria.
 // Handles: pasted Sefaria URLs, percent-encoding artifacts, form-encoded "+",
@@ -42,11 +42,42 @@ export function normalizeSourceInput(raw) {
 
   s = s.replace(/\s+/g, " ").trim();
 
+  // Sefaria denotes a verse/daf range with a bare hyphen (e.g. "Genesis
+  // 1:1-5"), but people write ranges as "1:1 to 5", "1:1 through 1:5", or
+  // "א:א עד ה". Collapse any of those separators to a hyphen so the range
+  // reaches Sefaria in the form it expects. Restricted to spots where a
+  // verse/numeral-like token sits on both sides (digit, ".", ":", or a
+  // Hebrew letter optionally followed by geresh/gershayim) so ordinary
+  // titles that happen to contain the word "to" (e.g. "Guide to the
+  // Perplexed") are left untouched. The before-side also allows a digit
+  // followed by "a"/"b" (a Talmud amud marker, e.g. "2a to 3b") — requiring
+  // the digit keeps this from matching an ordinary title that happens to
+  // end in "a" or "b" (e.g. "Yoma to Sukkah").
+  s = s.replace(
+    /([\d:.]|[א-ת][׳״]?|\d[ab])\s*(?:-|to|through|עד)\s*(?=[\d:.א-ת])/gi,
+    (_, before) => before + "-"
+  );
+
   // Strip wrapping punctuation left over from sentences/citations, but never
   // touch ":" or "." — both are meaningful ref separators for Sefaria.
   s = s.replace(/^[,;"'([{]+/, "").replace(/[,;"')\]}]+$/, "");
 
-  return s.trim();
+  s = s.trim();
+
+  // A trailing gematria address (e.g. "א:א") is letters used as numerals,
+  // not a spelled word — it can't have a homophone or malei/chaseir typo,
+  // but it can still have its letters in the wrong order (e.g. "בק" instead
+  // of "קב"). Fix that without touching the title portion, where the same
+  // letter runs are meaningful spelling, not numerals.
+  const { title, address } = splitTitleAndAddress(s);
+  if (address) {
+    const fixedAddress = address.replace(/[א-ת]{2,4}[׳״]?/g, (token) => fixGematriaOrder(token));
+    if (fixedAddress !== address) {
+      s = title + fixedAddress;
+    }
+  }
+
+  return s;
 }
 
 // Sefaria's name-completion endpoint does typo-tolerant matching against
