@@ -10,6 +10,7 @@ Era assignments come from Tamar's Ktav Ashuri font-era research chart
 - **Not a Sefaria fork.** Vite + React SPA, no backend; fetches texts client-side from the
   public Sefaria API (www.sefaria.org/api). Sheet state in localStorage; export = print CSS.
 - docs/ARCHITECTURE.md — authoritative spec: era-classification algorithm + era→font table.
+- docs/SEARCH.md — source-search architecture: offline lexicon + fold algorithm + live-API findings.
 - docs/FONTS.md — what font each era ships, licenses, and which are placeholders/substitutes.
 - src/api/sefaria.js (API client) · src/lib/era.js (classifier) · src/lib/fonts.js (era→font
   map with flags) · src/components/ (AddSource, Sheet, SourceCard).

@@ -7,76 +7,8 @@
 // Latin query once the lexicon asset has loaded, and exactly one
 // `/api/name` call at selection time (see `resolveSelection`).
 //
-// ============================================================================
-// PRESERVED LIVE-API KNOWLEDGE
-// (relocated here from src/api/sefaria.js's comments, and from HANDOFF.md's
-// 2026-07-15 entry, per SPEC.md §L2 — workstream D will move this block into
-// docs/SEARCH.md as the durable home; nothing below should be deleted before
-// that happens, only relocated.)
-// ============================================================================
-//
-// - Nikud/cantillation (the combining-mark block stripped by
-//   hebrewSearch.js's `stripNikud`) breaks BOTH of Sefaria's public
-//   endpoints: a pasted, vocalized "בְּרֵאשִׁית" 404s on /api/texts and
-//   returns junk from /api/name, where the unvocalized "בראשית" resolves
-//   fine on both. Nikud must be stripped before either endpoint ever sees
-//   the string — `normalizeSourceInput` (src/lib/inputNormalize.js) does
-//   this unconditionally, upstream of everything in this file.
-//
-// - Address-split discovery: Sefaria's name-completion endpoint does
-//   typo-tolerant matching against book/work TITLES, but a trailing
-//   chapter:verse address thrown in with the title (e.g. "Genessis 1",
-//   "Rashi on Bereishis 1:1") throws its fuzzy matcher off — confirmed live
-//   by testing "Genessis 1" until split, which returned garbage as one
-//   string but resolved correctly once the address was split off and
-//   queried as the title alone. `splitTitleAndAddress`
-//   (src/lib/inputNormalize.js) does this split; nameSearch always folds/
-//   matches the title part only, then reattaches the address at selection
-//   time via `resolveSelection`.
-//
-// - Gershayim/geresh bug (found + fixed during v1 verification): the
-//   address-split regex originally only recognized ASCII-digit-led trailing
-//   tokens, so a Hebrew gematria address like "א:א" (no ASCII digits) wasn't
-//   split off — selecting a suggestion silently dropped it, adding the
-//   whole book instead of the specific verse. Fixed in
-//   `splitTitleAndAddress` to also split on a trailing token containing ":"
-//   or Hebrew geresh/gershayim marks (א׳, כ״ג), not just ASCII-digit-led
-//   ones. (Kept here as a cautionary note for anyone touching address
-//   splitting again: test a gematria address specifically, not just "1:1".)
-//
-// - Fuzzy-match findings that motivated the OLD Ashkenazi->canonical variant
-//   fan-out (translitVariants.js, now deleted — subsumed by fold.js's
-//   phonetic-skeleton classes): live testing against Sefaria's own
-//   `/api/name` showed that a bad Ashkenazi-spelled COMPOUND query (e.g.
-//   "Rashi on Beraishis", "Tosafos on Brachos") routinely came back with
-//   3-10 *irrelevant* fuzzy-matched refs (e.g. "Rashi on Amos", "Onkelos
-//   Exodus") rather than an empty result — so a "direct result count < 3"
-//   gate would almost never have fired for exactly the compound-title
-//   queries that needed fixing. This is WHY the Latin path here is offline
-//   lexicon matching first (deterministic, no fuzz) with the live call only
-//   as a last-resort 0-hit fallback, rather than trying to out-guess
-//   Sefaria's fuzzy ranker with more variants. Re-verified live in this
-//   session (2026-07-16): raw "Rashi on Bereishis 1:1" against
-//   `/api/name` still returns `is_ref: false` and ten unrelated "Rashi on
-//   ___" completions — confirming the live endpoint alone still can't
-//   resolve this query; the offline lexicon match ("Rashi on Bereshit") is
-//   what makes it resolvable, via `resolveSelection` querying the CORRECTED
-//   title once selected.
-//
-// - Hebrew fallback gating (preserved unchanged from the old
-//   `fetchNameSuggestionsRobust`, see `searchHebrewTitles` below): only
-//   bother with the letter-confusable variant fan-out
-//   (`generateHebrewVariants`, hebrewSearch.js) once the direct query comes
-//   up short (< 3 results) AND the raw typed text has no nikud (nikud means
-//   it was almost certainly pasted from a correctly-spelled source, so a
-//   typo-tolerant fallback is pointless). Sefaria's Hebrew name index
-//   handles most spellings fine on its own; this keeps the common case to
-//   one API call. This gate gets to stay a live, per-keystroke fan-out
-//   (unlike the retired Latin one) because the Hebrew title list is tiny —
-//   only 56 Hebrew-codepoint strings exist in Sefaria's whole title index
-//   (see SPEC.md §1.2), so building a Hebrew lexicon asset wasn't worth it.
-//
-// ============================================================================
+// Search architecture, fold rules, and the preserved live-API findings now
+// live in docs/SEARCH.md.
 
 import { fold } from "./fold.js";
 import { splitTitleAndAddress } from "./inputNormalize.js";

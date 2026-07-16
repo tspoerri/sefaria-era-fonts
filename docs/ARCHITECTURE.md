@@ -61,15 +61,35 @@ a small ⚠ on substituted/placeholder fonts.
 ```
 index.html  package.json  vite.config.js
 src/main.jsx  src/App.jsx
-src/api/sefaria.js       # fetchText(ref), fetchIndex(title), tiny cache
+src/api/sefaria.js       # fetchText(ref), fetchIndex(title), fetchNameRaw, tiny cache
 src/lib/era.js           # classify(apiResponse) → {era, unclassified?}
 src/lib/fonts.js         # ERA_FONTS map + flags
+src/lib/fold.js          # Latin-script phonetic-skeleton fold (search key algorithm)
+src/lib/nameSearch.js    # offline lexicon match + live fallback; searchTitles/resolveSelection
+src/lib/hebrewSearch.js  # nikud stripping, Hebrew confusable-variant fallback, gematria helpers
+src/lib/inputNormalize.js  # normalizeSourceInput, splitTitleAndAddress
 src/components/AddSource.jsx  SourceCard.jsx  Sheet.jsx
 src/styles.css  src/fonts.css
 public/fonts/            # committed free font files
-docs/ARCHITECTURE.md  docs/FONTS.md
+public/lexicon.json      # prebuilt offline title-search index (see docs/SEARCH.md)
+scripts/build-lexicon.mjs  # regenerates public/lexicon.json from Sefaria's title index
+docs/ARCHITECTURE.md  docs/FONTS.md  docs/SEARCH.md
 README.md  CLAUDE.md  HANDOFF.md
 ```
+
+(`src/lib/translitVariants.js` and the old per-keystroke API-fan-out search
+path it supported were removed in Wave 2 of the search rewrite — subsumed by
+the offline lexicon + fold-table approach above.)
+
+## Search architecture
+
+Source-search (the "add source" combobox: typing/pasting a ref and picking a
+suggestion) has its own dedicated document — see **[docs/SEARCH.md](SEARCH.md)**
+for the offline lexicon pipeline, the fold algorithm and its rule table, the
+`public/lexicon.json` shape and regeneration instructions, the live-fallback
+path, and the preserved live-API findings (nikud stripping, address-split
+discovery, the gershayim/geresh bug, and why the Hebrew path stays a live
+fan-out while the Latin path is offline-first).
 
 ## Sheet features (v1 scope)
 Add by ref, remove, reorder (up/down buttons fine), sheet title, localStorage persistence,
