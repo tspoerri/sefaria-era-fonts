@@ -1,13 +1,26 @@
 # HANDOFF
 
-**Next action:** Review the four unpushed commits on `main` (Wave 0 snapshot +
-Waves 1-3 + this Wave-4 commit) and `git push` when satisfied — pushing
-triggers the Pages deploy (`.github/workflows/deploy.yml`), which this session
-deliberately did NOT do. Then run the ONE check that couldn't run in this
-sandbox: open the app in a browser and add "Rashi on Bereishis 1:1" — confirm
-it resolves to Rashi on Genesis, renders in **Mekorot Rashi** script, and the
-network panel shows exactly **one** `lexicon.json` fetch + **one** `/api/name`
-call (see "Not verifiable in-sandbox" below for why this was deferred).
+**Next action:** This session's git credentials turned out to be **push-blocked
+(403)** — `git push` to `origin/main` was attempted and rejected, so the four
+commits below could NOT be pushed from here as originally planned. Instead
+they were delivered to Tamar as a git bundle
+(`search-rewrite-waves-1-4.bundle`, contains `e435362..269d630`). To land
+them:
+```
+cd ~/path/to/sefaria-era-fonts   # your existing local clone
+git fetch /path/to/search-rewrite-waves-1-4.bundle main:search-rewrite
+git merge --ff-only search-rewrite
+git push origin main
+```
+Use the explicit `main:search-rewrite` refspec — the bundle only contains
+`refs/heads/main`, no `HEAD` ref, so a bare `git clone`/`git fetch` on it
+fails with "couldn't find remote ref HEAD". Pushing triggers the Pages
+deploy (`.github/workflows/deploy.yml`). Then run the ONE check that
+couldn't run in this sandbox: open the app in a browser and add "Rashi on
+Bereishis 1:1" — confirm it resolves to Rashi on Genesis, renders in
+**Mekorot Rashi** script, and the network panel shows exactly **one**
+`lexicon.json` fetch + **one** `/api/name` call (see "Not verifiable
+in-sandbox" below for why this was deferred).
 
 ## Current state (2026-07-16, search-rewrite session — lexicon architecture)
 
@@ -64,10 +77,14 @@ NOT pushed):
 
 ## Open questions / for Tamar
 
-- **Push + sign.** Commits are unpushed by design. They show as GitHub
-  "Unverified" (no GPG signature; committer email is correct
-  `noreply@anthropic.com`) — sign them if your workflow requires it. Nothing
-  in this session touched `.github/workflows/`.
+- **Push + sign.** Commits are unpushed — originally by design (session was
+  told never to push), and it turned out this session's git credentials are
+  push-blocked (403) anyway, so pushing from here wasn't an option even at
+  Wave 4. Delivered as a bundle instead — see "Next action" above. They show
+  as GitHub "Unverified" (no GPG signature; committer email is correct
+  `noreply@anthropic.com`) — sign them if your workflow requires it, e.g.
+  `git rebase --exec 'git commit --amend --no-edit -S' origin/main` after
+  merging the bundle in. Nothing in this session touched `.github/workflows/`.
 - **Not verifiable in-sandbox (egress to www.sefaria.org is policy-blocked
   here, 403).** Three things need your live browser: (1) the cold-start FIRST
   query on a fresh page can fall through to one `/api/name` call while the
@@ -101,6 +118,8 @@ NOT pushed):
   behavior matches SPEC §L2 as written.
 
 ## Resume command
-cd sefaria-era-fonts && cat HANDOFF.md && npm test && npm run dev
+cd sefaria-era-fonts && cat HANDOFF.md
+# merge the delivered bundle (see "Next action" above), then:
+npm test && npm run dev
 # then browser-verify "Rashi on Bereishis 1:1" renders in Rashi script,
-# and git push when the four commits look good.
+# and git push origin main when the four commits look good.
