@@ -1,6 +1,6 @@
-import { stripNikud, fixGematriaOrder } from "./hebrewSearch.js";
-import { fold } from "./fold.js";
-import { parshiyot } from "./parshiyot.js";
+import { stripNikud, fixGematriaOrder, gematriaToNumber } from "./hebrewSearch.js";
+import { resolveParshaByName } from "./parshiyot.js";
+import { isTractateTitle, tractateEnglishName } from "./tractates.js";
 
 // Cleans up freeform/pasted source-reference input before it's sent to Sefaria.
 // Handles: pasted Sefaria URLs, percent-encoding artifacts, form-encoded "+",
@@ -72,6 +72,17 @@ export function normalizeSourceInput(raw) {
   // sees the query — see docs/SEARCH.md and SPEC.md Wave D1.
   s = rewriteSearchMarkers(s);
 
+  // Gemara daf-amud addressing ("ברכות יב." -> "Berakhot 12a") — only
+  // activates when the title resolves to a Talmud Bavli tractate AND the
+  // trailing token is a Hebrew gematria daf address; see
+  // rewriteGemaraDafAddress above. Runs before the generic gematria-order
+  // fix below since it fully replaces `s` with an already-correct English
+  // ref (nothing Hebrew left for that fix to touch).
+  const gemaraRef = rewriteGemaraDafAddress(s);
+  if (gemaraRef) {
+    return gemaraRef;
+  }
+
   // A trailing gematria address (e.g. "א:א") is letters used as numerals,
   // not a spelled word — it can't have a homophone or malei/chaseir typo,
   // but it can still have its letters in the wrong order (e.g. "בק" instead
@@ -104,6 +115,22 @@ export function splitTitleAndAddress(query) {
   const m = query.match(/^(.*?)(\s+(?:\d[\d:.a-z]*|\S*:\S*|[א-ת]*[׳״][א-ת]*))$/i);
   if (!m) return { title: query, address: "" };
   return { title: m[1], address: m[2] };
+}
+
+// Bulk add (SPEC.md Wave 1 item 4): "Genesis 1:1 | Rashi on Genesis 1:1 |
+// ברכות יב." splits into separate source queries on a single pipe. Splits
+// the RAW (pre-normalization) input so each piece goes through
+// `normalizeSourceInput` independently — running the marker/gematria/parsha
+// rewrites over the whole pipe-joined blob at once would let a trailing
+// address on one item bleed into the next item's title. Returns an array
+// of trimmed, non-empty pieces; a single-item input (no "|") comes back as
+// a one-element array, so callers can treat every submission uniformly.
+export function splitBulkRefs(raw) {
+  if (!raw) return [];
+  return raw
+    .split("|")
+    .map((piece) => piece.trim())
+    .filter(Boolean);
 }
 
 // ----------------------------------------------------------------------------
@@ -197,34 +224,63 @@ export function rewriteSearchMarkers(s) {
 
 const PARSHA_LEAD = /^(?:parshas|parshat|parashat|parasha|parsha)\s+(.+)$/i;
 
-// A lighter, non-lossy normalization (lowercase + strip apostrophes/
-// hyphens/whitespace only — no consonant-class folding or vowel deletion)
-// used ONLY to break a fold()-key collision (see below). Two different
-// parsha names can legitimately fold to the same short key (e.g. "Vaera"
-// and "Behar" both -> "br" — fold.js's phonetic reduction is coarse by
-// design, see its short-key-collision note in nameSearch.js), so exact
-// fold-key equality alone isn't safe enough to resolve to a specific
-// book+range without a tiebreak; getting this wrong would put the wrong
-// text on someone's sheet.
-function lightNormalize(s) {
-  return s.toLowerCase().replace(/['’]/g, "").replace(/[-\s]+/g, "");
-}
-
+// Parsha-name resolution itself (fold()-matching + fold-key-collision
+// tiebreak) lives in src/lib/parshiyot.js (`resolveParshaByName`) — shared
+// with the marker-free bare-name detection used by the search suggestion
+// path (see nameSearch.js / AddSource.jsx, SPEC.md Wave 1 item 1).
 function rewriteParshaMarker(s) {
   const m = s.match(PARSHA_LEAD);
   if (!m) return s;
-  const rawName = m[1].trim();
-  const nameKey = fold(rawName);
-  if (!nameKey) return s;
+  const match = resolveParshaByName(m[1].trim());
+  return match ? `${match.book} ${match.range}` : s;
+}
 
-  const candidates = parshiyot.filter((p) => fold(p.name) === nameKey);
-  if (candidates.length === 0) return s;
-  if (candidates.length === 1) return `${candidates[0].book} ${candidates[0].range}`;
+// ----------------------------------------------------------------------------
+// Gemara daf-amud addressing (SPEC.md Wave 1 item 3).
+//
+// Activates ONLY when both hold: the title portion resolves to a Talmud
+// Bavli tractate (src/lib/tractates.js), AND the trailing address token is
+// Hebrew script matching exactly one gematria numeral followed by "." or
+// ":", optionally followed by an explicit א/ב amud letter (or nothing, for
+// a bare numeral). Convention: "." = amud a, ":" = amud b, an explicit
+// trailing letter always wins over the punctuation default, and a bare
+// numeral with no punctuation or letter defaults to amud a.
+//
+// Deliberately does NOT touch Latin "12:2"-style addresses (the numeral
+// pattern below only matches Hebrew letters) or Hebrew chapter:verse
+// addresses on non-tractate titles (e.g. "בראשית א:א" is untouched — its
+// title isn't a tractate, so the whole rewrite is skipped).
+// ----------------------------------------------------------------------------
 
-  // Fold-key collision — fall back to the lighter normalization to
-  // disambiguate; if that STILL doesn't pick a unique candidate, refuse to
-  // guess rather than risk resolving to the wrong parsha.
-  const lightKey = lightNormalize(rawName);
-  const exact = candidates.find((p) => lightNormalize(p.name) === lightKey);
-  return exact ? `${exact.book} ${exact.range}` : s;
+const GEMARA_DAF_SPLIT = /^(.*?)\s+([א-ת]{1,4}(?:[.:][אב]?)?)$/;
+const GEMARA_DAF_TOKEN = /^([א-ת]{1,4})([.:])?([אב])?$/;
+
+function parseGemaraDafToken(token) {
+  const m = token.match(GEMARA_DAF_TOKEN);
+  if (!m) return null;
+  const [, numPart, punct, letter] = m;
+  const n = gematriaToNumber(numPart);
+  if (!n || n < 1) return null;
+
+  let amud;
+  if (letter === "א") amud = "a";
+  else if (letter === "ב") amud = "b";
+  else if (punct === ".") amud = "a";
+  else if (punct === ":") amud = "b";
+  else amud = "a";
+
+  return { n, amud };
+}
+
+function rewriteGemaraDafAddress(s) {
+  const m = s.match(GEMARA_DAF_SPLIT);
+  if (!m) return null;
+  const [, titlePart, addressToken] = m;
+  const title = titlePart.trim();
+  if (!isTractateTitle(title)) return null;
+
+  const daf = parseGemaraDafToken(addressToken);
+  if (!daf) return null;
+
+  return `${tractateEnglishName(title)} ${daf.n}${daf.amud}`;
 }

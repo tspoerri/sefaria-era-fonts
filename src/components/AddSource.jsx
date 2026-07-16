@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { searchTitles, resolveSelection, offlineSearch } from "../lib/nameSearch.js";
-import { normalizeSourceInput, splitTitleAndAddress } from "../lib/inputNormalize.js";
+import { normalizeSourceInput, splitTitleAndAddress, splitBulkRefs } from "../lib/inputNormalize.js";
 
 // Fallback/API paths (Hebrew live fallback, Latin 0-hit/lexicon-loading
 // fallback) are debounced so a fast typist doesn't fan out a request per
@@ -104,19 +104,37 @@ export default function AddSource({ onAdd, busy, error }) {
   }
 
   // The only network call in the Latin happy path: resolves the picked
-  // suggestion (+ any pending address) to Sefaria's canonical ref.
+  // suggestion (+ any pending address) to Sefaria's canonical ref. A bare
+  // parsha suggestion (SPEC.md Wave 1 item 1) carries its own resolved
+  // `address` (the book range) rather than relying on whatever address the
+  // user actually typed, so that takes precedence when present.
   async function selectSuggestion(suggestion) {
     setOpen(false);
     setHighlight(-1);
     setSuggestions([]);
-    const resolved = await resolveSelection(suggestion.title, pendingAddress);
+    const address = suggestion.address !== undefined ? suggestion.address : pendingAddress;
+    const resolved = await resolveSelection(suggestion.title, address);
     setRef(resolved);
   }
 
+  // Handles both a single resolved ref and a bulk pipe-separated submission
+  // ("Genesis 1:1 | Rashi on Genesis 1:1 | ברכות יב.", SPEC.md Wave 1 item
+  // 4) — each piece is split off the RAW value and normalized
+  // independently, so a trailing address on one item can never bleed into
+  // the next item's title. `onAdd` is called with a plain string for a
+  // single item (unchanged contract) or an array for a bulk submission.
   function submit(value) {
-    const cleaned = normalizeSourceInput(value);
-    if (!cleaned || busy) return;
-    onAdd(cleaned);
+    if (!value || busy) return;
+    const items = splitBulkRefs(value);
+    if (items.length > 1) {
+      const normalizedItems = items.map((item) => normalizeSourceInput(item)).filter(Boolean);
+      if (normalizedItems.length === 0) return;
+      onAdd(normalizedItems);
+    } else {
+      const cleaned = normalizeSourceInput(value);
+      if (!cleaned) return;
+      onAdd(cleaned);
+    }
     setRef("");
     setSuggestions([]);
     setOpen(false);
@@ -133,7 +151,8 @@ export default function AddSource({ onAdd, busy, error }) {
       setOpen(false);
       setHighlight(-1);
       setSuggestions([]);
-      const resolved = await resolveSelection(picked.title, pendingAddress);
+      const address = picked.address !== undefined ? picked.address : pendingAddress;
+      const resolved = await resolveSelection(picked.title, address);
       submit(resolved);
       return;
     }
@@ -176,21 +195,30 @@ export default function AddSource({ onAdd, busy, error }) {
           />
           {open && suggestions.length > 0 ? (
             <ul className="add-source-suggestions" role="listbox">
-              {suggestions.map((s, i) => (
-                <li
-                  key={s.title}
-                  role="option"
-                  aria-selected={i === highlight}
-                  className={i === highlight ? "is-highlighted" : ""}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    selectSuggestion(s);
-                  }}
-                  onMouseEnter={() => setHighlight(i)}
-                >
-                  {s.display ?? s.title}
-                </li>
-              ))}
+              {suggestions.map((s, i) => {
+                // Suggestions with their own resolved `address` (e.g. a
+                // bare parsha match) already bake it into `display`; for
+                // everything else, append whatever address the user typed
+                // so they can see it was parsed correctly (SPEC.md Wave 1
+                // item 2), e.g. "Genesis" + " 1:1" -> "Genesis 1:1".
+                const addressSuffix = s.address === undefined && pendingAddress ? pendingAddress.trim() : "";
+                return (
+                  <li
+                    key={s.key ?? s.title}
+                    role="option"
+                    aria-selected={i === highlight}
+                    className={i === highlight ? "is-highlighted" : ""}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      selectSuggestion(s);
+                    }}
+                    onMouseEnter={() => setHighlight(i)}
+                  >
+                    {s.display ?? s.title}
+                    {addressSuffix ? ` ${addressSuffix}` : ""}
+                  </li>
+                );
+              })}
             </ul>
           ) : null}
         </div>

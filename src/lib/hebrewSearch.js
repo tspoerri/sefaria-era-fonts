@@ -219,6 +219,19 @@ function gematriaLetterValues(token) {
   return [...token].filter((ch) => GEMATRIA_VALUES[ch] !== undefined).map((ch) => GEMATRIA_VALUES[ch]);
 }
 
+// Converts a gematria numeral token (Hebrew letters used as numerals, e.g.
+// "יב" = 10+2 = 12) to its numeric value. Gematria value is a straight sum
+// of each letter's place value regardless of order — unlike
+// `fixGematriaOrder` above (which only *reorders* letters and never
+// computes a number), this actually resolves the numeral, which is what a
+// Gemara daf address ("יב." -> daf 12) needs. Geresh/gershayim marks and any
+// non-numeral character are ignored. Returns 0 for a token with no
+// recognized numeral letters at all (callers should treat that as "not a
+// valid daf address").
+export function gematriaToNumber(token) {
+  return gematriaLetterValues(token || "").reduce((sum, v) => sum + v, 0);
+}
+
 export function isValidGematriaOrder(token) {
   const values = gematriaLetterValues(token);
   for (let i = 1; i < values.length; i++) {

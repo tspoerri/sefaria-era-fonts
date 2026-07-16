@@ -11,6 +11,8 @@
 // Sefaria itself and by Artscroll/Koren/Chabad calendars) — this matters at
 // a handful of boundaries where Christian Bible numbering shifts by a verse
 // (e.g. Ki Tavo/Nitzavim split at Deuteronomy 29:8/29:9, not 29:9/29:10).
+import { fold } from "./fold.js";
+
 export const parshiyot = [
   // Bereshit (Genesis) — 12
   { name: "Bereshit", book: "Genesis", range: "1:1-6:8" },
@@ -76,3 +78,81 @@ export const parshiyot = [
   { name: "Ha'azinu", book: "Deuteronomy", range: "32:1-52" },
   { name: "V'Zot HaBerachah", book: "Deuteronomy", range: "33:1-34:12" },
 ];
+
+// Longest parsha name in word count (used to bound the n-gram scan in
+// `findParshaMentions` below) — every entry above is at most two
+// space-separated words ("Ki Tisa", "Lech Lecha", "V'Zot HaBerachah", ...).
+const MAX_PARSHA_NAME_WORDS = 2;
+
+// A lighter, non-lossy normalization (lowercase + strip apostrophes/
+// hyphens/whitespace only — no consonant-class folding or vowel deletion)
+// used ONLY to break a fold()-key collision between two DIFFERENT parsha
+// names (e.g. "Vaera" and "Behar" both fold to "br" — fold.js's phonetic
+// reduction is coarse by design). Exact fold-key equality alone isn't safe
+// enough to resolve to a specific book+range without a tiebreak; getting
+// this wrong would put the wrong text on someone's sheet.
+function lightNormalize(s) {
+  return s.toLowerCase().replace(/['’]/g, "").replace(/[-\s]+/g, "");
+}
+
+/**
+ * Resolve a single name string (e.g. "Noach", "Vayeitzei", "Ki Tisa") to its
+ * parsha table entry via fold()-matching (so folk/Ashkenazi/Sephardi
+ * spellings resolve), with a lightNormalize tiebreak for fold-key
+ * collisions between distinct parsha names. Returns `null` if the name
+ * doesn't fold-match anything, or if it collides and the tiebreak still
+ * can't pick a unique winner (refuses to guess rather than risk resolving
+ * to the wrong parsha).
+ */
+export function resolveParshaByName(rawName) {
+  const name = (rawName || "").trim();
+  if (!name) return null;
+  const nameKey = fold(name);
+  if (!nameKey) return null;
+
+  const candidates = parshiyot.filter((p) => fold(p.name) === nameKey);
+  if (candidates.length === 0) return null;
+  if (candidates.length === 1) return candidates[0];
+
+  const lightKey = lightNormalize(name);
+  return candidates.find((p) => lightNormalize(p.name) === lightKey) || null;
+}
+
+/**
+ * Detect parsha-name mentions anywhere in a (title-only, already
+ * script-appropriate) query string — at the start, in the middle, or at the
+ * end — with NO marker keyword required, e.g. bare "Noach" finds Parashat
+ * Noach. Scans every contiguous word run up to `MAX_PARSHA_NAME_WORDS`
+ * words long via `resolveParshaByName`, so "Ki Tisa" (two words) resolves
+ * as a unit rather than only "Ki" or "Tisa" alone.
+ *
+ * Deliberately does NOT try to disambiguate a bare name against a same-
+ * spelled book title (e.g. "Bereshit" is both a parsha and the first book
+ * of the Torah) — callers should surface both matches from their own
+ * source (this function for the parsha, the normal title-search path for
+ * the book) as separate suggestions rather than guessing between them; see
+ * docs/SEARCH.md.
+ *
+ * Returns an array of parsha table entries (each `{ name, book, range }`),
+ * de-duplicated by name, in the order first encountered.
+ */
+export function findParshaMentions(text) {
+  if (!text) return [];
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return [];
+
+  const found = [];
+  const seenNames = new Set();
+  for (let start = 0; start < words.length; start++) {
+    const maxLen = Math.min(MAX_PARSHA_NAME_WORDS, words.length - start);
+    for (let len = maxLen; len >= 1; len--) {
+      const phrase = words.slice(start, start + len).join(" ");
+      const match = resolveParshaByName(phrase);
+      if (match && !seenNames.has(match.name)) {
+        seenNames.add(match.name);
+        found.push(match);
+      }
+    }
+  }
+  return found;
+}

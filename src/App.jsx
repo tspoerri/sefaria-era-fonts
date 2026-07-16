@@ -92,32 +92,50 @@ export default function App() {
     );
   }
 
-  async function handleAdd(ref) {
+  // Resolves and adds a single ref; throws on failure so callers (bulk or
+  // single) can decide how to handle it.
+  async function addOneSource(ref) {
+    const ven = settings.translationVersion && settings.translationVersion.trim();
+    let resp = await fetchText(ref, ven ? { ven } : {});
+    if (ven && isEmptyEnglish(resp.text)) {
+      // Requested version doesn't cover this ref (or has no English) —
+      // fall back to Sefaria's default version.
+      resp = await fetchText(ref);
+    }
+
+    let index = null;
+    try {
+      index = await fetchIndex(resp.indexTitle);
+    } catch {
+      index = null;
+    }
+    const { era, unclassified } = classifyEra(resp, index);
+    const newSource = buildSourceFromResponse({ resp, index, era, unclassified });
+    setBlocks((prev) => [...prev, newSourceBlock(newSource)]);
+  }
+
+  // Accepts either a single ref (string, unchanged contract) or a bulk
+  // pipe-submission (array — see AddSource's `submit`, SPEC.md Wave 1 item
+  // 4). Bulk items are resolved/added one at a time, in order; a failure on
+  // one item is recorded but does NOT abort the rest, and every failure is
+  // surfaced together once the whole batch finishes.
+  async function handleAdd(refOrRefs) {
+    const items = Array.isArray(refOrRefs) ? refOrRefs : [refOrRefs];
     setBusy(true);
     setError(null);
-    try {
-      const ven = settings.translationVersion && settings.translationVersion.trim();
-      let resp = await fetchText(ref, ven ? { ven } : {});
-      if (ven && isEmptyEnglish(resp.text)) {
-        // Requested version doesn't cover this ref (or has no English) —
-        // fall back to Sefaria's default version.
-        resp = await fetchText(ref);
-      }
-
-      let index = null;
+    const failures = [];
+    for (const item of items) {
       try {
-        index = await fetchIndex(resp.indexTitle);
-      } catch {
-        index = null;
+        await addOneSource(item);
+      } catch (err) {
+        const message = err && err.message ? err.message : "Failed to add source.";
+        failures.push(items.length > 1 ? `"${item}": ${message}` : message);
       }
-      const { era, unclassified } = classifyEra(resp, index);
-      const newSource = buildSourceFromResponse({ resp, index, era, unclassified });
-      setBlocks((prev) => [...prev, newSourceBlock(newSource)]);
-    } catch (err) {
-      setError(err && err.message ? err.message : "Failed to add source.");
-    } finally {
-      setBusy(false);
     }
+    if (failures.length > 0) {
+      setError(failures.join(" | "));
+    }
+    setBusy(false);
   }
 
   function handleUpdateSourceBlock(blockId, patch) {

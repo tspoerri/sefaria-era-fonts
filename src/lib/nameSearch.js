@@ -13,6 +13,7 @@
 import { fold } from "./fold.js";
 import { splitTitleAndAddress } from "./inputNormalize.js";
 import { isHebrewText, hasNikud, generateHebrewVariants } from "./hebrewSearch.js";
+import { findParshaMentions } from "./parshiyot.js";
 import { fetchNameRaw } from "../api/sefaria.js";
 
 const MAX_SUGGESTIONS = 8;
@@ -196,6 +197,52 @@ function buildDisplayTitle(rawQueryTitle, candidateTitle) {
   return resultWords.join(" ");
 }
 
+// ----------------------------------------------------------------------------
+// Bare parsha-name suggestions (SPEC.md Wave 1 item 1): no "parshas"/
+// "parshat"/... marker keyword required — findParshaMentions (parshiyot.js)
+// fold()-matches the query itself, so a typo'd/folk-spelled bare name still
+// resolves. These are ADDED to whatever the normal title-search path finds
+// rather than replacing it, so a name that's ambiguous with a real book
+// title (e.g. "Bereshit" is both a parsha and the first book of the Torah,
+// or "Noach" fold-collides with the "Nach" collection title) surfaces BOTH
+// as separate suggestions instead of silently guessing one — see
+// docs/SEARCH.md.
+// ----------------------------------------------------------------------------
+
+function parshaSuggestions(titlePart) {
+  return findParshaMentions(titlePart).map((p) => ({
+    title: p.book,
+    key: `parsha:${p.name}`,
+    address: ` ${p.range}`,
+    isPrimary: true,
+    display: `Parashat ${p.name} — ${p.book} ${p.range}`,
+  }));
+}
+
+/**
+ * Merge bare-name parsha matches for `titlePart` in front of `others`
+ * (whatever the normal offline/live title search already found),
+ * de-duplicating by `key` (parsha suggestions use a `parsha:` -prefixed key
+ * so they never collide with a same-titled book suggestion — see the
+ * Bereshit/Noach ambiguity note above) and capping at `maxResults`. Pure
+ * and exported directly so it can be tested without going through the
+ * async search plumbing.
+ */
+export function mergeParshaSuggestions(titlePart, others, maxResults = MAX_SUGGESTIONS) {
+  const parshaMatches = parshaSuggestions(titlePart);
+  if (parshaMatches.length === 0) return others.slice(0, maxResults);
+
+  const merged = [...parshaMatches];
+  const seenKeys = new Set(merged.map((m) => m.key));
+  for (const o of others) {
+    if (merged.length >= maxResults) break;
+    if (seenKeys.has(o.key)) continue;
+    seenKeys.add(o.key);
+    merged.push(o);
+  }
+  return merged.slice(0, maxResults);
+}
+
 /**
  * Match a Latin-script title string against a loaded lexicon object. Pure
  * function: no I/O, no module state. Priority: exact-key hits, then
@@ -268,8 +315,14 @@ export function offlineSearch(query, maxResults = MAX_SUGGESTIONS) {
   const titlePart = title.trim();
   if (titlePart.length < 2) return [];
   if (isHebrewText(titlePart)) return null;
-  if (!lexiconData) return null;
-  return matchLatinOffline(lexiconData, titlePart, maxResults);
+  if (!lexiconData) {
+    // Lexicon not loaded yet -- can't answer for a real title, but a bare
+    // parsha-name match doesn't need the lexicon at all, so surface it
+    // immediately rather than waiting.
+    const parshaOnly = parshaSuggestions(titlePart);
+    return parshaOnly.length > 0 ? parshaOnly.slice(0, maxResults) : null;
+  }
+  return mergeParshaSuggestions(titlePart, matchLatinOffline(lexiconData, titlePart, maxResults), maxResults);
 }
 
 // ----------------------------------------------------------------------------
@@ -323,13 +376,15 @@ async function searchLatinTitles(title, { signal } = {}) {
 
   if (lexiconData) {
     const offline = matchLatinOffline(lexiconData, title);
-    if (offline.length > 0) return offline;
+    const merged = mergeParshaSuggestions(title, offline);
+    if (merged.length > 0) return merged;
     return fetchSuggestionsOnly(title, { signal });
   }
 
   // Lexicon not loaded yet (or failed to load) — single direct fallback so
   // the very first keystrokes of a session aren't dead.
-  return fetchSuggestionsOnly(title, { signal });
+  const live = await fetchSuggestionsOnly(title, { signal });
+  return mergeParshaSuggestions(title, live);
 }
 
 /**
