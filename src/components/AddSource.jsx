@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { searchTitles, resolveSelection, offlineSearch } from "../lib/nameSearch.js";
 import { normalizeSourceInput, splitTitleAndAddress, splitBulkRefs } from "../lib/inputNormalize.js";
+import { detectDir } from "../lib/textDir.js";
 
 // Fallback/API paths (Hebrew live fallback, Latin 0-hit/lexicon-loading
 // fallback) are debounced so a fast typist doesn't fan out a request per
@@ -192,6 +193,7 @@ export default function AddSource({ onAdd, busy, error }) {
             aria-autocomplete="list"
             aria-expanded={open}
             role="combobox"
+            dir={detectDir(ref) || undefined}
           />
           {open && suggestions.length > 0 ? (
             <ul className="add-source-suggestions" role="listbox">

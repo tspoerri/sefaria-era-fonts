@@ -612,22 +612,26 @@ body {
   margin-bottom: 0.75rem;
 }
 
+/* Title-bar layout: "sides" = EN then HE, reading left-to-right; "center"
+   (aka "side-by-side"/"bilingual" in the UI, see .source-card-body-center
+   below for the full rationale) = HE on the left, EN on the right. The
+   language spans live in their own .source-card-ref-langs wrapper so the
+   edit (✎) button's position isn't affected by which way that flips. */
 .source-card-ref {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
   font-weight: 600;
 }
 
-.source-card-ref-sides {
-  flex-direction: row;
+.source-card-ref-langs {
+  display: flex;
   align-items: baseline;
   gap: 0.75rem;
 }
 
-.source-card-ref-center {
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
+.source-card-ref-center .source-card-ref-langs {
+  flex-direction: row-reverse;
 }
 
 .source-card-ref-en {
@@ -772,6 +776,23 @@ body {
   color: var(--button-fg);
 }
 
+/* Wave 3 item 11: tap-start/tap-end range selection replaces drag-select
+   on coarse pointers / narrow viewports (see TextEditor.jsx's isCoarse and
+   src/lib/edits.js's nextTapSelection). Larger hit targets make individual
+   words easier to tap accurately. */
+.text-editor-words-tap .text-editor-word {
+  min-width: 1.6rem;
+  min-height: 1.6rem;
+  padding: 0.3rem 0.4rem;
+  margin: 0.15rem;
+  font-size: 1.05rem;
+}
+
+.text-editor-word.is-tap-anchor {
+  outline: 2px solid var(--button-bg);
+  outline-offset: 1px;
+}
+
 .text-editor-empty {
   color: var(--muted-2);
   font-style: italic;
@@ -890,7 +911,16 @@ body {
   color: var(--error);
 }
 
-/* Body layout: "sides" = EN left / HE right columns; "center" = stacked, centered */
+/* Body layout: "sides" = EN left / HE right columns, each ragged on its own
+   outer edge. "center" (Wave 3 item 10 — renamed "side-by-side"/"bilingual"
+   in the UI; the internal alignment key stays "center" so existing
+   localStorage settings don't need a migration) used to be a single
+   stacked-and-centered column; it's now a gutter-justified two-column
+   layout instead: Hebrew occupies the left half (right-aligned, hugging
+   the gutter), English the right half (left-aligned, hugging the gutter)
+   — straight edges down the middle, jagged on the outside. The DOM order
+   is always [English, Hebrew] (see SourceCard.jsx), so "center" uses
+   row-reverse to put Hebrew on the left without changing markup order. */
 .source-card-body {
   display: flex;
   gap: 1.5rem;
@@ -901,13 +931,14 @@ body {
 }
 
 .source-card-body-center {
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
+  flex-direction: row-reverse;
+  align-items: flex-start;
 }
 
 .source-card-body-sides .source-english,
-.source-card-body-sides .source-hebrew {
+.source-card-body-sides .source-hebrew,
+.source-card-body-center .source-english,
+.source-card-body-center .source-hebrew {
   flex: 1;
   min-width: 0;
 }
@@ -918,18 +949,10 @@ body {
   text-align: right;
 }
 
-.source-card-body-center .source-hebrew {
-  text-align: center;
-}
-
 .source-english {
   font-size: 0.95rem;
   color: var(--muted);
   text-align: left;
-}
-
-.source-card-body-center .source-english {
-  text-align: center;
 }
 
 .perek-heading {

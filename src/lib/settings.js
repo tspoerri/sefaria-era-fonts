@@ -7,12 +7,18 @@ const STORAGE_KEY = "sefaria-era-fonts-settings";
 export const DEFAULTS = {
   titleBar: {
     language: "both", // "both" | "he" | "en"
-    alignment: "sides", // "sides" (EN left, HE right) | "center"
+    // "sides" (EN left, HE right) | "center" — UI label "Side-by-side"/
+    // "Bilingual"; internal key kept as "center" (Wave 3 item 10) so
+    // existing localStorage settings don't need a migration. Renders as a
+    // gutter-justified two-column layout: HE left (right-aligned), EN
+    // right (left-aligned) — see styles.css .source-card-ref-center /
+    // .source-card-body-center.
+    alignment: "sides",
     nikkud: true,
   },
   body: {
     language: "both",
-    alignment: "sides",
+    alignment: "sides", // see titleBar.alignment above — same "sides"|"center" semantics
     modeTanakh: "sefer", // "klaf" | "sefer" | "simple" | "bare"
     modeOther: "sefer", // "sefer" | "bare"
   },

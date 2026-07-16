@@ -257,12 +257,14 @@ export default function SourceCard({
     <div className="source-card">
       <div className="source-card-header">
         <div className={`source-card-ref source-card-ref-${effective.titleBar.alignment}`}>
-          {titleLang !== "he" ? <span className="source-card-ref-en">{titleEn}</span> : null}
-          {titleLang !== "en" ? (
-            <span className="source-card-ref-he" dir="rtl">
-              {titleHe}
-            </span>
-          ) : null}
+          <span className="source-card-ref-langs">
+            {titleLang !== "he" ? <span className="source-card-ref-en">{titleEn}</span> : null}
+            {titleLang !== "en" ? (
+              <span className="source-card-ref-he" dir="rtl">
+                {titleHe}
+              </span>
+            ) : null}
+          </span>
           <button
             type="button"
             className="source-card-title-edit"

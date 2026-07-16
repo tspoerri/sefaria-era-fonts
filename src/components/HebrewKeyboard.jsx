@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { t } from "../lib/strings.js";
-import { getLayoutRows, mapPhysicalKey } from "../lib/keyboardLayouts.js";
+import { getLayoutRows, getLayoutDir, mapPhysicalKey } from "../lib/keyboardLayouts.js";
 
 // Text fields the popup is allowed to type into: the sheet title/author
 // inputs, the AddSource combobox, heading/text block inputs, and the
@@ -191,7 +191,7 @@ export default function HebrewKeyboard({ settings, onChange, onClose }) {
 
       {!hasTarget ? <p className="hebrew-keyboard-note">{t("keyboardNoTarget", siteLang)}</p> : null}
 
-      <div className="hebrew-keyboard-grid" dir="ltr">
+      <div className="hebrew-keyboard-grid" dir={getLayoutDir(keyboard.layout)}>
         {rows.map((row, i) => (
           <div className="hebrew-keyboard-row" key={i}>
             {row.map((key) => (

@@ -12,6 +12,7 @@ import {
   allowedOps,
   canTrim,
   applyOp,
+  nextTapSelection,
 } from "../src/lib/edits.js";
 
 describe("stripHtmlToText", () => {
@@ -154,6 +155,51 @@ describe("applyOp: elide", () => {
     const result = applyOp(tokens, 0, 2, { type: "elide" });
     assert.equal(result.ok, true);
     assert.deepEqual(rebuildSegments(result.tokens, 1), ["…"]);
+  });
+
+  // Wave 3 item 11: elide is already usable on an English word range —
+  // applyOp has no language parameter and OPS_EN (checked above) already
+  // lists "elide" alongside "trim"/"bracket"/"substitute", so a range
+  // eliding English text works exactly like a Hebrew one. Kept here as an
+  // explicit end-to-end regression check on English content specifically.
+  test("elides a range of English text same as any other language", () => {
+    assert.ok(allowedOps("en").includes("elide"));
+    const tokens = tokenizeSegments(["The quick brown fox jumps"]);
+    const result = applyOp(tokens, 1, 3, { type: "elide" });
+    assert.equal(result.ok, true);
+    assert.deepEqual(rebuildSegments(result.tokens, 1), ["The … jumps"]);
+  });
+});
+
+describe("nextTapSelection: mobile tap-start/tap-end range selection (Wave 3 item 11)", () => {
+  test("first tap sets a pending anchor and a single-word selection", () => {
+    assert.deepEqual(nextTapSelection(null, 3), {
+      pendingAnchor: 3,
+      sel: { anchor: 3, focus: 3 },
+    });
+  });
+
+  test("second tap finalizes the range from the pending anchor and clears pending state", () => {
+    assert.deepEqual(nextTapSelection(3, 7), {
+      pendingAnchor: null,
+      sel: { anchor: 3, focus: 7 },
+    });
+  });
+
+  test("tapping the same word twice selects just that word", () => {
+    assert.deepEqual(nextTapSelection(5, 5), {
+      pendingAnchor: null,
+      sel: { anchor: 5, focus: 5 },
+    });
+  });
+
+  test("tapping a word before the anchor still produces a valid (unnormalized) range", () => {
+    // start/end normalization (Math.min/max) is the caller's job, same as
+    // it already is for mouse-drag selections.
+    assert.deepEqual(nextTapSelection(7, 2), {
+      pendingAnchor: null,
+      sel: { anchor: 7, focus: 2 },
+    });
   });
 });
 

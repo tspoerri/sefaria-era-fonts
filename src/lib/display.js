@@ -3,6 +3,15 @@
 // full mode semantics this implements. Nothing here touches the DOM or
 // localStorage — everything is a pure function over strings/arrays so it's
 // unit-testable offline.
+//
+// Note: settings.{titleBar,body}.alignment ("sides" | "center") is a
+// separate, orthogonal axis handled entirely in CSS (styles.css
+// .source-card-ref-*/.source-card-body-*) and SourceCard.jsx — it decides
+// how the Hebrew/English columns this file produces are arranged
+// side-by-side, not what the columns contain. Wave 3 item 10 redefined
+// "center" from a stacked/centered layout to a gutter-justified bilingual
+// one (HE left, EN right); layoutSegments()'s block/segment output is
+// unaffected either way.
 
 // ---- Unicode strip helpers -------------------------------------------------
 

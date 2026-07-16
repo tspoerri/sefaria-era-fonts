@@ -14,6 +14,7 @@ import {
   LAYOUTS,
   PHYSICAL_MODES,
   getLayoutRows,
+  getLayoutDir,
   mapPhysicalKey,
 } from "../src/lib/keyboardLayouts.js";
 
@@ -159,5 +160,21 @@ describe("PHYSICAL_MODES / LAYOUTS", () => {
   test("expected values present", () => {
     assert.deepEqual(LAYOUTS, ["alephbet", "israeli", "qwerty"]);
     assert.deepEqual(PHYSICAL_MODES, ["original", "israeli", "qwerty"]);
+  });
+});
+
+describe("getLayoutDir (Wave 3 item 8: alef-taf renders RTL, alef top-right)", () => {
+  test("alephbet layout is rtl", () => {
+    assert.equal(getLayoutDir("alephbet"), "rtl");
+  });
+
+  test("israeli and qwerty layouts stay ltr (they mirror a physical keyboard's key positions)", () => {
+    assert.equal(getLayoutDir("israeli"), "ltr");
+    assert.equal(getLayoutDir("qwerty"), "ltr");
+  });
+
+  test("alephbet rows start with alef, so rtl rendering puts it top-right", () => {
+    const rows = getLayoutRows("alephbet");
+    assert.equal(rows[0][0].char, "א");
   });
 });

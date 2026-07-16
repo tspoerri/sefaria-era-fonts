@@ -1,6 +1,7 @@
 import SourceCard from "./SourceCard.jsx";
 import { t } from "../lib/strings.js";
 import { SPACER_SIZES } from "../lib/blocks.js";
+import { detectDir } from "../lib/textDir.js";
 
 function BlockControls({ siteLang, isFirst, isLast, onMoveUp, onMoveDown, onDelete }) {
   return (
@@ -33,6 +34,7 @@ function HeadingBlock({ block, siteLang, isFirst, isLast, onChangeText, onMoveUp
         value={block.text}
         placeholder={t("headingPlaceholder", siteLang)}
         onChange={(e) => onChangeText(e.target.value)}
+        dir={detectDir(block.text) || undefined}
       />
       <BlockControls
         siteLang={siteLang}
@@ -55,6 +57,7 @@ function TextBlock({ block, siteLang, isFirst, isLast, onChangeText, onMoveUp, o
         placeholder={t("textBlockPlaceholder", siteLang)}
         onChange={(e) => onChangeText(e.target.value)}
         rows={3}
+        dir={detectDir(block.text) || undefined}
       />
       <BlockControls
         siteLang={siteLang}

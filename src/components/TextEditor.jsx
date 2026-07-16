@@ -1,12 +1,20 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   tokenizeSegments,
   rebuildSegments,
   allowedOps,
   canTrim,
   applyOp,
+  nextTapSelection,
 } from "../lib/edits.js";
 import { t } from "../lib/strings.js";
+import { detectDir } from "../lib/textDir.js";
+
+// Narrow-viewport / touch heuristic (Wave 3 item 11): drag-to-select isn't
+// practical without hover events (coarse pointers) or much screen real
+// estate, so those contexts get a tap-start/tap-end alternative instead.
+// Matches the project's existing 768px mobile breakpoint (see styles.css).
+const COARSE_QUERY = "(pointer: coarse), (max-width: 768px)";
 
 // A structured word-token editor for one language column of a source's
 // text (SPEC.md Wave B, item 2). NOT contenteditable — words are discrete
@@ -21,6 +29,24 @@ function WordColumn({ lang, tokens, onChangeTokens, siteLang }) {
   const [pendingOp, setPendingOp] = useState(null); // "bracket" | "substitute" | null
   const [pendingText, setPendingText] = useState("");
   const [notice, setNotice] = useState(null);
+  const [isCoarse, setIsCoarse] = useState(false);
+  const [tapAnchor, setTapAnchor] = useState(null); // pending first-tap index, coarse-pointer mode only
+
+  // Coarse-pointer / narrow-viewport detection for the tap-based selection
+  // mode (Wave 3 item 11). Lives here instead of module scope so it reacts
+  // to viewport resizes and orientation changes while the editor is open.
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return undefined;
+    const mq = window.matchMedia(COARSE_QUERY);
+    setIsCoarse(mq.matches);
+    const handleChange = (e) => setIsCoarse(e.matches);
+    if (mq.addEventListener) mq.addEventListener("change", handleChange);
+    else mq.addListener(handleChange);
+    return () => {
+      if (mq.removeEventListener) mq.removeEventListener("change", handleChange);
+      else mq.removeListener(handleChange);
+    };
+  }, []);
 
   const ops = allowedOps(lang);
   const hasSel = sel != null;
@@ -54,6 +80,17 @@ function WordColumn({ lang, tokens, onChangeTokens, siteLang }) {
     setDragging(false);
   }
 
+  // Mobile/coarse-pointer alternative to drag-select: tap a word to anchor
+  // the range, tap another (or the same) word to finish it — see
+  // src/lib/edits.js's nextTapSelection for the pure state transition.
+  function handleWordTap(index) {
+    setNotice(null);
+    clearTransient();
+    const next = nextTapSelection(tapAnchor, index);
+    setTapAnchor(next.pendingAnchor);
+    setSel(next.sel);
+  }
+
   function errorMessage(code) {
     if (code === "trim-not-at-edge") return t("errorTrimNotAtEdge", siteLang);
     if (code === "zero-words") return t("errorZeroWords", siteLang);
@@ -70,6 +107,7 @@ function WordColumn({ lang, tokens, onChangeTokens, siteLang }) {
     }
     setNotice(null);
     setSel(null);
+    setTapAnchor(null);
     clearTransient();
     onChangeTokens(result.tokens);
   }
@@ -91,19 +129,23 @@ function WordColumn({ lang, tokens, onChangeTokens, siteLang }) {
   return (
     <div className="text-editor-column" dir={lang === "he" ? "rtl" : "ltr"}>
       <div
-        className="text-editor-words"
-        onMouseUp={endDrag}
-        onMouseLeave={dragging ? endDrag : undefined}
+        className={`text-editor-words${isCoarse ? " text-editor-words-tap" : ""}`}
+        onMouseUp={isCoarse ? undefined : endDrag}
+        onMouseLeave={!isCoarse && dragging ? endDrag : undefined}
       >
         {tokens.length === 0 ? <span className="text-editor-empty">—</span> : null}
         {tokens.map((tok, i) => {
           const selected = hasSel && i >= start && i <= end;
+          const isTapAnchor = isCoarse && tapAnchor === i;
           return (
             <span
               key={i}
-              className={`text-editor-word${selected ? " is-selected" : ""}`}
-              onMouseDown={(e) => handleMouseDown(i, e)}
-              onMouseEnter={() => handleMouseEnter(i)}
+              className={`text-editor-word${selected ? " is-selected" : ""}${
+                isTapAnchor ? " is-tap-anchor" : ""
+              }`}
+              onMouseDown={isCoarse ? undefined : (e) => handleMouseDown(i, e)}
+              onMouseEnter={isCoarse ? undefined : () => handleMouseEnter(i)}
+              onClick={isCoarse ? () => handleWordTap(i) : undefined}
             >
               {tok.text}
             </span>
@@ -131,6 +173,7 @@ function WordColumn({ lang, tokens, onChangeTokens, siteLang }) {
             value={pendingText}
             placeholder={t("opTextPlaceholder", siteLang)}
             onChange={(e) => setPendingText(e.target.value)}
+            dir={detectDir(pendingText) || undefined}
             autoFocus
           />
           <button type="button" onClick={confirmPending}>
@@ -148,7 +191,15 @@ function WordColumn({ lang, tokens, onChangeTokens, siteLang }) {
         </p>
       ) : (
         <p className="text-editor-hint">
-          {hasSel ? "" : t("selectWordsHint", siteLang)}
+          {isCoarse
+            ? tapAnchor != null
+              ? t("selectWordsHintTapPending", siteLang)
+              : hasSel
+              ? ""
+              : t("selectWordsHintTap", siteLang)
+            : hasSel
+            ? ""
+            : t("selectWordsHint", siteLang)}
         </p>
       )}
     </div>

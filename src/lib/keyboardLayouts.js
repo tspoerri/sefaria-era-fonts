@@ -134,6 +134,17 @@ export function getLayoutRows(layout) {
   return alephbetRows();
 }
 
+// Visual direction the on-screen grid should render in (Wave 3 item 8).
+// "alephbet" is a right-to-left alphabet chart — HEBREW_LETTERS is already
+// alef-first, so rendering its rows with dir="rtl" puts א in the top-right
+// corner and lets each row run right-to-left, matching a real Hebrew
+// keyboard's visual convention. "israeli"/"qwerty" instead draw a picture of
+// a physical QWERTY-shaped keyboard (same key positions the table maps
+// from), so they stay left-to-right regardless of which glyphs sit on them.
+export function getLayoutDir(layout) {
+  return layout === "alephbet" ? "rtl" : "ltr";
+}
+
 // Maps a single lowercased keyboard-event key to the Hebrew character it
 // should produce under the given physical mapping mode, or null if the key
 // isn't remapped (mode is "original", or the key has no mapping).

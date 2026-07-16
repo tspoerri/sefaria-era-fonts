@@ -10,6 +10,7 @@ import { classifyEra } from "./lib/era.js";
 import { loadSheet, saveSheet, buildSourceFromResponse, isEmptyEnglish } from "./lib/sheetStorage.js";
 import { loadSettings, saveSettings, DEFAULTS } from "./lib/settings.js";
 import { t } from "./lib/strings.js";
+import { detectDir } from "./lib/textDir.js";
 import { estimateSegmentCount, isLargeFetch } from "./lib/fetchGuard.js";
 import { parseSheetIdFromInput, mapSheetToBlockDescriptors } from "./lib/sheetImport.js";
 import {
@@ -375,6 +376,7 @@ export default function App() {
               onChange={(e) => setTitle(e.target.value)}
               aria-label="Sheet title"
               placeholder={t("sheetTitlePlaceholder", siteLang)}
+              dir={detectDir(title) || undefined}
             />
             <input
               className="sheet-author-input"
@@ -382,6 +384,7 @@ export default function App() {
               onChange={(e) => setAuthor(e.target.value)}
               aria-label="Sheet author"
               placeholder={t("sheetAuthorPlaceholder", siteLang)}
+              dir={detectDir(author) || undefined}
             />
           </div>
           <div className="app-header-actions">

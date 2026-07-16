@@ -123,3 +123,23 @@ export function applyOp(tokens, start, end, op) {
   if (next.length === 0) return { ok: false, error: "zero-words" };
   return { ok: true, tokens: next };
 }
+
+// ---- Mobile tap-start/tap-end range selection (Wave 3 item 11) -----------
+//
+// Drag-to-select (the desktop mousedown/mouseenter/mouseup flow in
+// TextEditor.jsx's WordColumn) doesn't work without hover events, so
+// coarse-pointer/narrow-viewport contexts get a two-tap alternative
+// instead: tap a word to anchor the range, tap another (or the same) word
+// to finish it. Pure state transition, no DOM — TextEditor.jsx owns the
+// `tapAnchor`/`sel` state and calls this on every tap.
+//
+// nextTapSelection(pendingAnchor, index) -> { pendingAnchor, sel }
+//   pendingAnchor: null | number — the anchor to remember for the next tap
+//   sel: { anchor, focus } — the selection to show right away (a single
+//     word on the first tap of a pair, the finished range on the second)
+export function nextTapSelection(pendingAnchor, index) {
+  if (pendingAnchor == null) {
+    return { pendingAnchor: index, sel: { anchor: index, focus: index } };
+  }
+  return { pendingAnchor: null, sel: { anchor: pendingAnchor, focus: index } };
+}
