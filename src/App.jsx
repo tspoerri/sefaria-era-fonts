@@ -2,11 +2,23 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import AddSource from "./components/AddSource.jsx";
 import Sheet from "./components/Sheet.jsx";
 import SettingsMenu from "./components/SettingsMenu.jsx";
+import Outline from "./components/Outline.jsx";
 import { fetchText, fetchIndex } from "./api/sefaria.js";
 import { classifyEra } from "./lib/era.js";
 import { loadSheet, saveSheet, buildSourceFromResponse, isEmptyEnglish } from "./lib/sheetStorage.js";
 import { loadSettings, saveSettings, DEFAULTS } from "./lib/settings.js";
 import { t } from "./lib/strings.js";
+import {
+  newSourceBlock,
+  newHeadingBlock,
+  newTextBlock,
+  newSpacerBlock,
+  reorderBlocks,
+  removeBlockAt,
+  restoreBlockAt,
+} from "./lib/blocks.js";
+
+const UNDO_TIMEOUT_MS = 7000;
 
 function applyDarkModeClass(darkMode) {
   const root = document.documentElement;
@@ -23,15 +35,20 @@ function applyDarkModeClass(darkMode) {
 export default function App() {
   const initial = useMemo(() => loadSheet(), []);
   const [title, setTitle] = useState(initial.title);
-  const [sources, setSources] = useState(initial.sources);
+  const [author, setAuthor] = useState(initial.author || "");
+  const [blocks, setBlocks] = useState(initial.blocks);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [settings, setSettings] = useState(() => loadSettings());
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [undoStack, setUndoStack] = useState([]);
+  const undoTimers = useRef(new Map());
+  const undoIdRef = useRef(0);
 
   useEffect(() => {
-    saveSheet({ title, sources });
-  }, [title, sources]);
+    saveSheet({ title, author, blocks });
+  }, [title, author, blocks]);
 
   useEffect(() => {
     saveSettings(settings);
@@ -50,6 +67,15 @@ export default function App() {
       mq.removeEventListener ? mq.removeEventListener("change", handler) : mq.removeListener(handler);
     };
   }, [settings.darkMode]);
+
+  // Clear any pending undo timers on unmount.
+  useEffect(() => {
+    const timers = undoTimers.current;
+    return () => {
+      timers.forEach((timerId) => clearTimeout(timerId));
+      timers.clear();
+    };
+  }, []);
 
   function updateSettings(patch) {
     setSettings((prev) => ({ ...prev, ...patch }));
@@ -75,7 +101,7 @@ export default function App() {
       }
       const { era, unclassified } = classifyEra(resp, index);
       const newSource = buildSourceFromResponse({ resp, index, era, unclassified });
-      setSources((prev) => [...prev, newSource]);
+      setBlocks((prev) => [...prev, newSourceBlock(newSource)]);
     } catch (err) {
       setError(err && err.message ? err.message : "Failed to add source.");
     } finally {
@@ -83,80 +109,201 @@ export default function App() {
     }
   }
 
-  function handleRemove(id) {
-    setSources((prev) => prev.filter((s) => s.id !== id));
+  function handleUpdateSourceBlock(blockId, patch) {
+    setBlocks((prev) =>
+      prev.map((b) => (b.id === blockId && b.type === "source" ? { ...b, source: { ...b.source, ...patch } } : b))
+    );
   }
 
-  function handleUpdateSource(id, patch) {
-    setSources((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+  function handleUpdateSimpleBlock(blockId, patch) {
+    setBlocks((prev) => prev.map((b) => (b.id === blockId ? { ...b, ...patch } : b)));
   }
 
-  function handleMove(id, direction) {
-    setSources((prev) => {
-      const index = prev.findIndex((s) => s.id === id);
+  function handleMoveBlock(blockId, direction) {
+    setBlocks((prev) => {
+      const index = prev.findIndex((b) => b.id === blockId);
       if (index === -1) return prev;
-      const target = index + direction;
-      if (target < 0 || target >= prev.length) return prev;
-      const next = prev.slice();
-      const [item] = next.splice(index, 1);
-      next.splice(target, 0, item);
+      return reorderBlocks(prev, index, index + direction);
+    });
+  }
+
+  function handleReorder(fromIndex, toIndex) {
+    setBlocks((prev) => reorderBlocks(prev, fromIndex, toIndex));
+  }
+
+  function scheduleUndoExpiry(undoId) {
+    const timerId = setTimeout(() => {
+      setUndoStack((prev) => prev.filter((entry) => entry.undoId !== undoId));
+      undoTimers.current.delete(undoId);
+    }, UNDO_TIMEOUT_MS);
+    undoTimers.current.set(undoId, timerId);
+  }
+
+  // Source blocks get the delete-guard (undo toast); simple blocks (heading/
+  // text/spacer) delete immediately, per SPEC.md Wave C item 3.
+  function handleDeleteBlock(blockId) {
+    setBlocks((prev) => {
+      const index = prev.findIndex((b) => b.id === blockId);
+      if (index === -1) return prev;
+      const { blocks: next, removed } = removeBlockAt(prev, index);
+      if (!removed) return prev;
+      if (removed.block.type === "source") {
+        undoIdRef.current += 1;
+        const undoId = undoIdRef.current;
+        setUndoStack((stack) => [...stack, { undoId, block: removed.block, index: removed.index }]);
+        scheduleUndoExpiry(undoId);
+      }
       return next;
     });
   }
 
+  function handleUndo(undoId) {
+    const entry = undoStack.find((e) => e.undoId === undoId);
+    if (!entry) return;
+    const timerId = undoTimers.current.get(undoId);
+    if (timerId) {
+      clearTimeout(timerId);
+      undoTimers.current.delete(undoId);
+    }
+    setUndoStack((prev) => prev.filter((e) => e.undoId !== undoId));
+    setBlocks((prev) => restoreBlockAt(prev, { block: entry.block, index: entry.index }));
+  }
+
   function handleResetAll() {
-    setSources((prev) =>
-      prev.map((s) => ({ ...s, titleOverride: null, heEdited: null, enEdited: null }))
+    setBlocks((prev) =>
+      prev.map((b) =>
+        b.type === "source"
+          ? { ...b, source: { ...b.source, titleOverride: null, heEdited: null, enEdited: null } }
+          : b
+      )
     );
   }
 
+  function handleSelectBlock(blockId) {
+    const el = document.getElementById(`block-${blockId}`);
+    if (el && el.scrollIntoView) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    setSidebarOpen(false);
+  }
+
+  function handleAddHeading() {
+    setBlocks((prev) => [...prev, newHeadingBlock("")]);
+  }
+
+  function handleAddText() {
+    setBlocks((prev) => [...prev, newTextBlock("")]);
+  }
+
+  function handleAddSpacer(size) {
+    setBlocks((prev) => [...prev, newSpacerBlock(size)]);
+  }
+
   const siteLang = settings.siteLang;
+  const activeToast = undoStack.length ? undoStack[undoStack.length - 1] : null;
 
   return (
-    <div className="app">
-      <header className="app-header">
-        <input
-          className="sheet-title-input"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          aria-label="Sheet title"
-          placeholder={t("sheetTitlePlaceholder", siteLang)}
-        />
-        <div className="app-header-actions">
-          <button
-            type="button"
-            className="print-button"
-            onClick={() => window.print()}
-          >
-            {t("print", siteLang)}
-          </button>
-          <IconCluster
-            settings={settings}
-            onUpdateSettings={updateSettings}
-            settingsOpen={settingsOpen}
-            onToggleSettings={() => setSettingsOpen((v) => !v)}
-          />
-        </div>
-      </header>
-
-      {settingsOpen ? (
-        <SettingsMenu
-          settings={settings}
-          onChange={updateSettings}
-          onClose={() => setSettingsOpen(false)}
-          onResetAll={handleResetAll}
-        />
-      ) : null}
-
-      <AddSource onAdd={handleAdd} busy={busy} error={error} />
-
-      <Sheet
-        sources={sources}
-        onRemove={handleRemove}
-        onMove={handleMove}
-        onUpdateSource={handleUpdateSource}
+    <div className="app-shell">
+      <Outline
+        blocks={blocks}
         settings={settings}
+        open={sidebarOpen}
+        onToggle={() => setSidebarOpen((v) => !v)}
+        onSelect={handleSelectBlock}
+        onReorder={handleReorder}
+        onUpdateBlock={handleUpdateSourceBlock}
+        onDeleteBlock={handleDeleteBlock}
       />
+
+      <div className="app">
+        <header className="app-header">
+          <div className="app-header-titles">
+            <input
+              className="sheet-title-input"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              aria-label="Sheet title"
+              placeholder={t("sheetTitlePlaceholder", siteLang)}
+            />
+            <input
+              className="sheet-author-input"
+              value={author}
+              onChange={(e) => setAuthor(e.target.value)}
+              aria-label="Sheet author"
+              placeholder={t("sheetAuthorPlaceholder", siteLang)}
+            />
+          </div>
+          <div className="app-header-actions">
+            <button
+              type="button"
+              className="print-button"
+              onClick={() => window.print()}
+            >
+              {t("print", siteLang)}
+            </button>
+            <IconCluster
+              settings={settings}
+              onUpdateSettings={updateSettings}
+              settingsOpen={settingsOpen}
+              onToggleSettings={() => setSettingsOpen((v) => !v)}
+            />
+          </div>
+        </header>
+
+        {settingsOpen ? (
+          <SettingsMenu
+            settings={settings}
+            onChange={updateSettings}
+            onClose={() => setSettingsOpen(false)}
+            onResetAll={handleResetAll}
+          />
+        ) : null}
+
+        <AddSource onAdd={handleAdd} busy={busy} error={error} />
+
+        <AddBlockControls siteLang={siteLang} onAddHeading={handleAddHeading} onAddText={handleAddText} onAddSpacer={handleAddSpacer} />
+
+        <Sheet
+          blocks={blocks}
+          settings={settings}
+          onRemoveSourceBlock={handleDeleteBlock}
+          onMoveBlock={handleMoveBlock}
+          onUpdateSourceBlock={handleUpdateSourceBlock}
+          onUpdateSimpleBlock={handleUpdateSimpleBlock}
+          onDeleteBlock={handleDeleteBlock}
+        />
+      </div>
+
+      {activeToast ? (
+        <div className="undo-toast" role="status">
+          <span>{t("undoRemovedToast", siteLang)}</span>
+          <button type="button" onClick={() => handleUndo(activeToast.undoId)}>
+            {t("undo", siteLang)}
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function AddBlockControls({ siteLang, onAddHeading, onAddText, onAddSpacer }) {
+  return (
+    <div className="add-block-controls">
+      <button type="button" onClick={onAddHeading}>
+        {t("addHeading", siteLang)}
+      </button>
+      <button type="button" onClick={onAddText}>
+        {t("addText", siteLang)}
+      </button>
+      <span className="add-spacer-group">
+        <button type="button" onClick={() => onAddSpacer("S")}>
+          {t("addSpacer", siteLang)} (S)
+        </button>
+        <button type="button" onClick={() => onAddSpacer("M")}>
+          {t("addSpacer", siteLang)} (M)
+        </button>
+        <button type="button" onClick={() => onAddSpacer("L")}>
+          {t("addSpacer", siteLang)} (L)
+        </button>
+      </span>
     </div>
   );
 }

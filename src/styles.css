@@ -52,18 +52,48 @@ body {
     sans-serif;
 }
 
+.app-shell {
+  display: flex;
+  align-items: flex-start;
+  min-height: 100vh;
+}
+
 .app {
   max-width: 760px;
   margin: 0 auto;
   padding: 2rem 1.25rem 4rem;
+  flex: 1;
+  min-width: 0;
 }
 
 .app-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
   margin-bottom: 1.5rem;
+}
+
+.app-header-titles {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.sheet-author-input {
+  font-size: 0.95rem;
+  border: none;
+  background: transparent;
+  padding: 0.15rem 0.25rem;
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+}
+
+.sheet-author-input:hover,
+.sheet-author-input:focus {
+  border-bottom: 2px solid var(--title-underline);
+  outline: none;
 }
 
 .app-header-actions {
@@ -332,11 +362,44 @@ body {
 }
 
 .source-card {
+  position: relative;
   background: var(--card-bg);
   border: 1px solid var(--card-border);
   border-radius: 8px;
   padding: 1.25rem 1.5rem;
   box-shadow: 0 1px 3px var(--card-shadow);
+}
+
+/* Deliberately NOT grouped with the ↑/↓ move controls: a small ghost
+   button pinned to the opposite corner of the card, danger color only on
+   hover, so a stray click doesn't sit next to the reorder arrows. */
+.source-card-remove {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  width: 1.6rem;
+  height: 1.6rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted-2);
+  cursor: pointer;
+  font-size: 0.8rem;
+  opacity: 0.6;
+}
+
+:root[dir="rtl"] .source-card-remove {
+  right: auto;
+  left: 0.6rem;
+}
+
+.source-card-remove:hover {
+  opacity: 1;
+  background: var(--danger);
+  color: #fff;
 }
 
 .source-card-header {
@@ -622,12 +685,6 @@ body {
   cursor: default;
 }
 
-.source-card-remove:hover {
-  background: var(--danger);
-  color: #fff;
-  border-color: var(--danger);
-}
-
 .source-card-error {
   color: var(--error);
 }
@@ -710,6 +767,395 @@ body {
   width: 1.5em;
 }
 
+/* Add-block controls (heading / free text / spacer) */
+.add-block-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.add-block-controls button {
+  padding: 0.4rem 0.75rem;
+  border: 1px dashed var(--input-border-strong);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.add-block-controls button:hover {
+  background: var(--hover-bg-2);
+  color: var(--fg);
+}
+
+.add-spacer-group {
+  display: inline-flex;
+  gap: 0.25rem;
+}
+
+/* Generic simple-block chrome (heading/text/spacer) shared header pattern */
+.sheet-block {
+  scroll-margin-top: 1.5rem;
+}
+
+.heading-block,
+.text-block,
+.spacer-block {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+}
+
+.heading-block-input {
+  flex: 1;
+  font-size: 1.15rem;
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  color: var(--fg);
+  padding: 0.25rem;
+}
+
+.text-block-input {
+  flex: 1;
+  font-size: 0.95rem;
+  border: 1px solid var(--input-border);
+  border-radius: 6px;
+  background: var(--input-bg);
+  color: var(--fg);
+  padding: 0.5rem;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.spacer-block {
+  align-items: center;
+}
+
+.spacer-block-S {
+  min-height: 1.5rem;
+}
+
+.spacer-block-M {
+  min-height: 3.5rem;
+}
+
+.spacer-block-L {
+  min-height: 6.5rem;
+}
+
+.spacer-size-select {
+  padding: 0.3rem 0.4rem;
+  border: 1px solid var(--input-border);
+  border-radius: 6px;
+  background: var(--input-bg);
+  color: var(--fg);
+}
+
+.block-controls {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.block-controls button {
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--input-border);
+  border-radius: 4px;
+  background: var(--input-bg);
+  color: var(--fg);
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.block-controls button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.block-delete:hover {
+  background: var(--danger);
+  color: #fff;
+  border-color: var(--danger);
+}
+
+/* Undo toast (delete-guard) */
+.undo-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 1.5rem;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  background: var(--fg);
+  color: var(--bg);
+  padding: 0.65rem 1rem;
+  border-radius: 8px;
+  box-shadow: 0 6px 20px var(--card-shadow);
+  z-index: 200;
+  font-size: 0.9rem;
+}
+
+.undo-toast button {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+  font-size: 0.9rem;
+}
+
+/* Outline sidebar */
+.outline-hamburger {
+  display: none;
+  position: fixed;
+  top: 0.9rem;
+  left: 0.9rem;
+  z-index: 210;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid var(--input-border);
+  border-radius: 6px;
+  background: var(--card-bg);
+  color: var(--fg);
+  cursor: pointer;
+  font-size: 1.1rem;
+}
+
+.outline-backdrop {
+  display: none;
+}
+
+.outline {
+  width: 260px;
+  flex-shrink: 0;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  overflow-y: auto;
+  background: var(--card-bg);
+  border-right: 1px solid var(--card-border);
+  padding: 1rem 0.75rem;
+}
+
+:root[dir="rtl"] .outline {
+  border-right: none;
+  border-left: 1px solid var(--card-border);
+}
+
+.outline-header {
+  margin-bottom: 0.75rem;
+}
+
+.outline-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.outline-empty {
+  color: var(--muted);
+  font-style: italic;
+  font-size: 0.85rem;
+}
+
+.outline-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.outline-row {
+  border-radius: 6px;
+}
+
+.outline-row.is-dragging {
+  opacity: 0.4;
+}
+
+.outline-row-main {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.15rem;
+}
+
+.outline-drag-handle {
+  cursor: grab;
+  color: var(--muted-2);
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.outline-row-label {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.05rem;
+  border: none;
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+  padding: 0.2rem 0.3rem;
+  border-radius: 4px;
+  text-align: start;
+}
+
+.outline-row-label:hover {
+  background: var(--hover-bg);
+}
+
+.outline-type-tag {
+  font-size: 0.65rem;
+  color: var(--muted-2);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.outline-label-text {
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.outline-expand,
+.outline-row-delete {
+  border: none;
+  background: transparent;
+  color: var(--muted-2);
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0.15rem 0.3rem;
+  border-radius: 4px;
+}
+
+.outline-expand:hover {
+  color: var(--fg);
+  background: var(--hover-bg);
+}
+
+.outline-row-delete:hover {
+  background: var(--danger);
+  color: #fff;
+}
+
+.outline-drop-indicator {
+  height: 2px;
+  margin: 0 0.3rem;
+  background: var(--fg);
+  border-radius: 1px;
+}
+
+.outline-settings-panel {
+  margin: 0.25rem 0 0.6rem 1.1rem;
+  padding: 0.5rem 0.6rem;
+  border-inline-start: 2px solid var(--card-border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.outline-settings-heading {
+  margin: 0.3rem 0 0;
+  font-size: 0.72rem;
+  color: var(--muted-2);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.outline-override-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.outline-override-field select {
+  padding: 0.3rem 0.4rem;
+  border: 1px solid var(--input-border);
+  border-radius: 6px;
+  background: var(--input-bg);
+  color: var(--fg);
+  font-size: 0.8rem;
+}
+
+.outline-reset-modifications {
+  margin-top: 0.3rem;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--danger);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--danger);
+  cursor: pointer;
+  font-size: 0.78rem;
+}
+
+.outline-reset-modifications:hover {
+  background: var(--hover-bg);
+}
+
+/* Below ~768px the sidebar collapses to a hamburger that slides an overlay
+   panel over the content, rather than taking up permanent width. */
+@media (max-width: 768px) {
+  .outline-hamburger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .outline {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    z-index: 205;
+    box-shadow: 0 0 24px var(--card-shadow);
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+  }
+
+  :root[dir="rtl"] .outline {
+    left: auto;
+    right: 0;
+    transform: translateX(100%);
+  }
+
+  .outline.is-open {
+    transform: translateX(0);
+  }
+
+  .outline-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: var(--overlay-bg);
+    z-index: 204;
+  }
+
+  .app {
+    padding-top: 3.75rem;
+  }
+}
+
 /* Print export */
 @media print {
   :root {
@@ -724,18 +1170,35 @@ body {
   }
 
   .add-source,
+  .add-block-controls,
   .print-button,
   .icon-cluster,
   .settings-menu-overlay,
   .source-card-controls,
+  .source-card-remove,
   .source-card-title-edit,
   .source-card-text-controls,
   .title-editor,
-  .text-editor {
+  .text-editor,
+  .outline,
+  .outline-hamburger,
+  .outline-backdrop,
+  .undo-toast,
+  .block-controls {
     display: none !important;
   }
 
-  .sheet-title-input {
+  .app-shell {
+    display: block;
+  }
+
+  .app {
+    max-width: none;
+    padding: 0;
+  }
+
+  .sheet-title-input,
+  .sheet-author-input {
     border: none;
   }
 
@@ -745,5 +1208,12 @@ body {
     border-bottom: 1px solid #ddd;
     border-radius: 0;
     page-break-inside: avoid;
+  }
+
+  .heading-block,
+  .text-block,
+  .spacer-block {
+    border: none;
+    padding: 0.5rem 0;
   }
 }

@@ -1,14 +1,28 @@
-// Sheet state storage: the new (Wave A) segment-preserving source model,
-// localStorage load/save, and migration from the old flattened-string
-// shape. Pure/testable (no React) so App.jsx can stay a thin wrapper.
+// Sheet state storage: the Wave-C blocks model ({title, author, blocks}),
+// localStorage load/save, and the full migration chain down to the
+// pre-Wave-A flattened-string shape. Pure/testable (no React) so App.jsx
+// can stay a thin wrapper.
 //
-// Old shape (pre-Wave-A): { title, sources: [{ id, ref, heRef, he, text,
-// era, unclassified }] } under STORAGE_KEY "sefaria-era-fonts-sheet". `he`/
-// `text` could be string | string[] | string[][] (never flattened before
-// render). New shape keeps the full segment structure — see SPEC.md
-// "Shared data-model contracts" for the authoritative field list.
+// Shape history:
+//   pre-Wave-A (OLD_STORAGE_KEY "sefaria-era-fonts-sheet"):
+//     { title, sources: [{ id, ref, heRef, he, text, era, unclassified }] }
+//     `he`/`text` could be string | string[] | string[][] (never flattened
+//     before render).
+//   Wave A/B (V2_STORAGE_KEY "sefaria-era-fonts-sheet-v2"):
+//     { title, sources: [<full segment-preserving source object>] } — see
+//     SPEC.md "Shared data-model contracts".
+//   Wave C (STORAGE_KEY "sefaria-era-fonts-sheet-v3", current):
+//     { title, author, blocks: [{id, type, ...}] } — each pre-existing
+//     source becomes a {id, type:"source", source} block. See SPEC.md
+//     "Wave C — sheet structure".
+//
+// loadSheet() always migrates forward to the v3 shape; older keys are left
+// in place (non-destructive) so a rollback wouldn't lose data.
 
-export const STORAGE_KEY = "sefaria-era-fonts-sheet-v2";
+import { newSourceBlock } from "./blocks.js";
+
+export const STORAGE_KEY = "sefaria-era-fonts-sheet-v3";
+export const V2_STORAGE_KEY = "sefaria-era-fonts-sheet-v2";
 export const OLD_STORAGE_KEY = "sefaria-era-fonts-sheet";
 
 export function makeSourceId() {
@@ -196,7 +210,10 @@ function migrateLegacySource(old) {
   };
 }
 
-// Migrates a parsed old-shape sheet object to the new shape. Pure.
+// Migrates a parsed old-shape (pre-Wave-A) sheet object to the v2 shape.
+// Pure. (Kept as its own step — rather than jumping straight to v3 — so the
+// legacy→v2 migration itself stays independently testable/reusable, per
+// SPEC.md's "keep the legacy→v2 migration chain working".)
 export function migrateLegacySheet(oldParsed) {
   const title =
     oldParsed && typeof oldParsed.title === "string" ? oldParsed.title : "Untitled Sheet";
@@ -205,13 +222,26 @@ export function migrateLegacySheet(oldParsed) {
   return { title, sources };
 }
 
-function defaultSheet() {
-  return { title: "Untitled Sheet", sources: [] };
+// Migrates a parsed v2-shape sheet ({title, sources}) to the v3 blocks
+// shape ({title, author, blocks}) — every source becomes a {id, type:
+// "source", source} block, in order. Pure.
+export function migrateV2ToV3(v2Parsed) {
+  const title =
+    v2Parsed && typeof v2Parsed.title === "string" ? v2Parsed.title : "Untitled Sheet";
+  const author = v2Parsed && typeof v2Parsed.author === "string" ? v2Parsed.author : "";
+  const sources = v2Parsed && Array.isArray(v2Parsed.sources) ? v2Parsed.sources : [];
+  return { title, author, blocks: sources.map((source) => newSourceBlock(source)) };
 }
 
-// Loads sheet state from localStorage: prefers the new (v2) key; if absent,
-// migrates the old key's data (without deleting it — non-destructive); if
-// neither exists (or parsing fails), returns a fresh empty sheet.
+function defaultSheet() {
+  return { title: "Untitled Sheet", author: "", blocks: [] };
+}
+
+// Loads sheet state from localStorage, always returning the current (v3)
+// shape: prefers STORAGE_KEY; falls back to migrating V2_STORAGE_KEY; falls
+// back to migrating OLD_STORAGE_KEY through the full legacy->v2->v3 chain;
+// returns a fresh empty sheet if nothing is found. Older keys are left in
+// place (non-destructive).
 export function loadSheet() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -219,18 +249,29 @@ export function loadSheet() {
       const parsed = JSON.parse(raw);
       return {
         title: typeof parsed.title === "string" ? parsed.title : "Untitled Sheet",
-        sources: Array.isArray(parsed.sources) ? parsed.sources : [],
+        author: typeof parsed.author === "string" ? parsed.author : "",
+        blocks: Array.isArray(parsed.blocks) ? parsed.blocks : [],
       };
     }
   } catch {
-    // fall through to legacy/default
+    // fall through
+  }
+
+  try {
+    const v2Raw = localStorage.getItem(V2_STORAGE_KEY);
+    if (v2Raw) {
+      const v2Parsed = JSON.parse(v2Raw);
+      return migrateV2ToV3(v2Parsed);
+    }
+  } catch {
+    // fall through
   }
 
   try {
     const oldRaw = localStorage.getItem(OLD_STORAGE_KEY);
     if (oldRaw) {
       const oldParsed = JSON.parse(oldRaw);
-      return migrateLegacySheet(oldParsed);
+      return migrateV2ToV3(migrateLegacySheet(oldParsed));
     }
   } catch {
     // fall through to default

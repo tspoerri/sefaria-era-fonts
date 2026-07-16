@@ -29,6 +29,7 @@ globalThis.localStorage = makeLocalStorageStub();
 
 const {
   STORAGE_KEY,
+  V2_STORAGE_KEY,
   OLD_STORAGE_KEY,
   flattenSefariaText,
   buildSegmentRefs,
@@ -37,6 +38,7 @@ const {
   formatCompDateDisplay,
   buildSourceFromResponse,
   migrateLegacySheet: migrateLegacySheetDirect,
+  migrateV2ToV3,
   loadSheet,
   saveSheet,
 } = await import("../src/lib/sheetStorage.js");
@@ -275,44 +277,99 @@ describe("migration: old flattened-string sheet -> new segment-preserving shape"
   });
 });
 
-describe("loadSheet / saveSheet (localStorage-backed, namespaced v2 key)", () => {
+describe("migrateV2ToV3: v2 {title, sources} -> v3 {title, author, blocks}", () => {
+  test("wraps every source in a {id, type: 'source', source} block, in order", () => {
+    const v2 = {
+      title: "My Sheet",
+      sources: [
+        { id: "s1", ref: "Genesis 1:1" },
+        { id: "s2", ref: "Exodus 2:1" },
+      ],
+    };
+    const v3 = migrateV2ToV3(v2);
+    assert.equal(v3.title, "My Sheet");
+    assert.equal(v3.author, "");
+    assert.equal(v3.blocks.length, 2);
+    assert.equal(v3.blocks[0].type, "source");
+    assert.equal(v3.blocks[0].source.id, "s1");
+    assert.equal(v3.blocks[1].source.id, "s2");
+    assert.ok(v3.blocks[0].id);
+    assert.notEqual(v3.blocks[0].id, v3.blocks[1].id);
+  });
+
+  test("handles missing/malformed input without throwing", () => {
+    assert.deepEqual(migrateV2ToV3(null), { title: "Untitled Sheet", author: "", blocks: [] });
+    assert.deepEqual(migrateV2ToV3({}), { title: "Untitled Sheet", author: "", blocks: [] });
+  });
+
+  test("preserves an existing author field", () => {
+    const v3 = migrateV2ToV3({ title: "T", author: "Tamar", sources: [] });
+    assert.equal(v3.author, "Tamar");
+  });
+});
+
+describe("loadSheet / saveSheet (localStorage-backed, namespaced v3 key + full migration chain)", () => {
   beforeEach(() => {
     globalThis.localStorage.clear();
   });
 
-  test("STORAGE_KEY is namespaced (v2) and distinct from the old key", () => {
-    assert.equal(STORAGE_KEY, "sefaria-era-fonts-sheet-v2");
+  test("STORAGE_KEY is namespaced (v3), distinct from the v2 and legacy keys", () => {
+    assert.equal(STORAGE_KEY, "sefaria-era-fonts-sheet-v3");
+    assert.equal(V2_STORAGE_KEY, "sefaria-era-fonts-sheet-v2");
     assert.equal(OLD_STORAGE_KEY, "sefaria-era-fonts-sheet");
-    assert.notEqual(STORAGE_KEY, OLD_STORAGE_KEY);
+    assert.notEqual(STORAGE_KEY, V2_STORAGE_KEY);
+    assert.notEqual(V2_STORAGE_KEY, OLD_STORAGE_KEY);
   });
 
   test("loadSheet returns an empty default sheet when nothing is stored", () => {
-    assert.deepEqual(loadSheet(), { title: "Untitled Sheet", sources: [] });
+    assert.deepEqual(loadSheet(), { title: "Untitled Sheet", author: "", blocks: [] });
   });
 
-  test("saveSheet + loadSheet round-trips the new shape under the v2 key", () => {
+  test("saveSheet + loadSheet round-trips the v3 blocks shape", () => {
     const state = {
       title: "Round Trip",
-      sources: [
+      author: "Tamar",
+      blocks: [
         {
-          id: "x1",
-          ref: "Genesis 1:1",
-          heRef: "בראשית א:א",
-          isTanakh: true,
-          heSegments: ["a"],
-          enSegments: ["b"],
-          segmentRefs: [{ perek: 1, passuk: 1 }],
-          era: "chumash",
+          id: "blk-1",
+          type: "source",
+          source: {
+            id: "x1",
+            ref: "Genesis 1:1",
+            heRef: "בראשית א:א",
+            isTanakh: true,
+            heSegments: ["a"],
+            enSegments: ["b"],
+            segmentRefs: [{ perek: 1, passuk: 1 }],
+            era: "chumash",
+          },
         },
       ],
     };
     saveSheet(state);
     const loaded = loadSheet();
     assert.equal(loaded.title, "Round Trip");
-    assert.equal(loaded.sources[0].id, "x1");
+    assert.equal(loaded.author, "Tamar");
+    assert.equal(loaded.blocks[0].source.id, "x1");
   });
 
-  test("loadSheet migrates an old-shape sheet found under OLD_STORAGE_KEY when no v2 key exists", () => {
+  test("loadSheet migrates a v2-shape sheet found under V2_STORAGE_KEY when no v3 key exists", () => {
+    globalThis.localStorage.setItem(
+      V2_STORAGE_KEY,
+      JSON.stringify({
+        title: "V2 Sheet",
+        sources: [{ id: "v2src", ref: "Genesis 1:1", heSegments: ["a"], enSegments: ["b"] }],
+      })
+    );
+    const loaded = loadSheet();
+    assert.equal(loaded.title, "V2 Sheet");
+    assert.equal(loaded.author, "");
+    assert.equal(loaded.blocks.length, 1);
+    assert.equal(loaded.blocks[0].type, "source");
+    assert.equal(loaded.blocks[0].source.id, "v2src");
+  });
+
+  test("loadSheet migrates an old-shape (legacy) sheet through the full legacy->v2->v3 chain when no v3/v2 key exists", () => {
     globalThis.localStorage.setItem(
       OLD_STORAGE_KEY,
       JSON.stringify({
@@ -332,17 +389,35 @@ describe("loadSheet / saveSheet (localStorage-backed, namespaced v2 key)", () =>
     );
     const loaded = loadSheet();
     assert.equal(loaded.title, "Legacy Sheet");
-    assert.equal(loaded.sources.length, 1);
-    assert.deepEqual(loaded.sources[0].heSegments, ["וַיֵּלֶךְ"]);
+    assert.equal(loaded.blocks.length, 1);
+    assert.equal(loaded.blocks[0].type, "source");
+    assert.deepEqual(loaded.blocks[0].source.heSegments, ["וַיֵּלֶךְ"]);
   });
 
-  test("v2 key takes precedence over a stale old key", () => {
+  test("v3 key takes precedence over stale v2/legacy keys", () => {
     globalThis.localStorage.setItem(
       OLD_STORAGE_KEY,
       JSON.stringify({ title: "Old", sources: [] })
     );
-    saveSheet({ title: "New", sources: [] });
+    globalThis.localStorage.setItem(
+      V2_STORAGE_KEY,
+      JSON.stringify({ title: "Also Old", sources: [] })
+    );
+    saveSheet({ title: "New", author: "", blocks: [] });
     const loaded = loadSheet();
     assert.equal(loaded.title, "New");
+  });
+
+  test("v2 key takes precedence over a stale legacy key", () => {
+    globalThis.localStorage.setItem(
+      OLD_STORAGE_KEY,
+      JSON.stringify({ title: "Old", sources: [] })
+    );
+    globalThis.localStorage.setItem(
+      V2_STORAGE_KEY,
+      JSON.stringify({ title: "V2 Wins", sources: [] })
+    );
+    const loaded = loadSheet();
+    assert.equal(loaded.title, "V2 Wins");
   });
 });

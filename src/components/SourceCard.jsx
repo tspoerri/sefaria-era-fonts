@@ -293,16 +293,18 @@ export default function SourceCard({
           >
             ↓
           </button>
-          <button
-            type="button"
-            className="source-card-remove"
-            onClick={onRemove}
-            aria-label={t("remove", siteLang)}
-          >
-            ✕
-          </button>
         </div>
       </div>
+
+      <button
+        type="button"
+        className="source-card-remove"
+        onClick={onRemove}
+        aria-label={t("remove", siteLang)}
+        title={t("remove", siteLang)}
+      >
+        ✕
+      </button>
 
       {editingTitle ? (
         <TitleEditor
