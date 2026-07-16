@@ -13,7 +13,17 @@ Era assignments come from Tamar's Ktav Ashuri font-era research chart
 - docs/SEARCH.md — source-search architecture: offline lexicon + fold algorithm + live-API findings.
 - docs/FONTS.md — what font each era ships, licenses, and which are placeholders/substitutes.
 - src/api/sefaria.js (API client) · src/lib/era.js (classifier) · src/lib/fonts.js (era→font
-  map with flags) · src/components/ (AddSource, Sheet, SourceCard).
+  map with flags).
+- src/lib/sheetStorage.js (sheet load/save + legacy→v2→v3 migration) · blocks.js (blocks
+  model: source/heading/text/spacer) · settings.js (global settings store) · display.js
+  (layoutSegments display-mode pipeline) · edits.js (constrained text-editor op logic) ·
+  strings.js (EN/HE chrome i18n dict) · keyboardLayouts.js (on-screen + physical Hebrew
+  keyboard tables) · parshiyot.js (54 parshiyot table for search markers) ·
+  inputNormalize.js (normalizeSourceInput, rewriteSearchMarkers) · nameSearch.js (offline
+  lexicon match + live fallback) · hebrewSearch.js (Hebrew-script search path) · fold.js
+  (phonetic fold algorithm).
+- src/components/ — AddSource, Sheet, SourceCard, TextEditor, Outline (sidebar), SettingsMenu
+  (gear panel), HebrewKeyboard (keyboard popup).
 - public/fonts/ — committed free fonts only (OFL / GPL+FE). NO paid fonts (Koren etc.) —
   substitutes are flagged; a licensed user can drop in real files and edit fonts.js.
 

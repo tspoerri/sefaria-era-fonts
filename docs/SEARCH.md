@@ -13,15 +13,22 @@ scripts/build-lexicon.mjs               (build time, run rarely)
   fetches GET /api/index/titles
     -> for each Latin-script title: fold(title)  [src/lib/fold.js]
     -> first-occurrence-wins per folded key (TOC rank = priority)
-    -> prune (only if over budget; §4 below)
+    -> prune (only if over budget; §6 below)
     -> emit public/lexicon.json  { keys: [], titles: [], ranks: [] }
        (committed asset, ASCII-sorted keys, 45,019 entries as of 2026-07-16)
+
+src/lib/inputNormalize.js               (runtime, before matching — §2 below)
+  normalizeSourceInput(raw)
+    -> URL/percent-decoding, nikud stripping, punctuation cleanup, ...
+    -> rewriteSearchMarkers(s): daf/amud, perek/passuk, siman/seif, parsha
+       phrases rewritten to Sefaria's compact address form
 
 src/lib/nameSearch.js                   (runtime, per keystroke)
   loadLexicon() fetches public/lexicon.json once per session, caches it
     -> matchLatinOffline(lexicon, title): fold() the query with the SAME
        fold.js, binary-search the keys array -> ranked suggestions
-       (zero network calls once the lexicon has loaded)
+       (zero network calls once the lexicon has loaded; each suggestion's
+       `display` field echoes the user's own spelling — §3 below)
     -> 0 offline hits (or lexicon not loaded yet) -> exactly one direct
        /api/name fallback call (no variant fan-out)
 
@@ -35,14 +42,92 @@ App.fetchText(ref)                      (on add)
 
 Hebrew-script queries never touch the lexicon; they keep the pre-existing
 live `/api/name` + confusable-variant-fallback path unchanged (`src/lib/
-hebrewSearch.js`, `searchHebrewTitles` in `nameSearch.js`) — see §5 and §6.
+hebrewSearch.js`, `searchHebrewTitles` in `nameSearch.js`) — see §7 and §8.
 
 Total network calls for a full Latin query-to-add flow, once the lexicon has
 loaded: **one** (`/api/name` at selection, via `resolveSelection`). While the
 lexicon is still loading, or on a genuine 0-hit, one extra direct `/api/name`
 call covers the gap.
 
-## 2. The fold algorithm (`src/lib/fold.js`)
+## 2. Structural marker parsing (`rewriteSearchMarkers`, `src/lib/inputNormalize.js`)
+
+Before the title/address split, before offline lexicon matching, before the
+live `/api/name` fallback ever sees the query, `normalizeSourceInput` runs
+`rewriteSearchMarkers(s)` — a pure string→string rewrite that turns
+spoken/written marker phrases into the compact address form Sefaria's own
+ref parser and the offline lexicon expect. It's idempotent (an
+already-rewritten "2a" has no "daf"/"amud" left to re-match) and only ever
+touches Arabic-digit values — Hebrew-numeral (gematria) daf/perek values
+(e.g. "daf kuf-lamed") are explicitly out of scope.
+
+- **`daf N [amud a|b|aleph|beis|א|ב]`** → `"Na"`/`"Nb"`; bare `daf N` → `"N"`.
+  Not anchored to the start of the string, so "Brachos daf 2 amud a" →
+  "Brachos 2a". Requires a digit immediately after `daf`/`דף` (Unicode-aware
+  boundary check, not `\b` — plain `\b` doesn't recognize a transition into
+  Hebrew letters as a word boundary at all) so a bare title like "Daf Yomi"
+  is never touched.
+- **Bare `N amud a|b`** (no `daf`/`דף` keyword) → `"Na"`/`"Nb"`, e.g.
+  "Brachos 2 amud a" → "Brachos 2a". Only fires when the trailing word
+  resolves to a real amud letter (`amudLetter`); an unrecognized word after
+  `amud` is left alone.
+- **`perek N [passuk/pasuk/posuk M]`** → `"N:M"`; bare `perek N` → `"N"`.
+- **`siman N [seif/se'if/sif M]`** → `"N:M"`; bare `siman N` → `"N"`.
+- **`parsha(s|t)? NAME` / `parashat NAME`** → `"Book range"`, looked up in
+  the 54-entry `parshiyot` table (`src/lib/parshiyot.js`, Torah-reading
+  order, standard Jewish chapter:verse numbering — e.g. Ki Tavo/Nitzavim
+  split at Deuteronomy 29:8/29:9, not the Christian-numbering 29:9/29:10).
+  `NAME` is matched via `fold()` (the same phonetic-skeleton function the
+  lexicon uses) so folk spellings ("parshas Noach", "parshat Vayeitzei")
+  resolve without a separate alias table. Only fires when the marker leads
+  the *whole* query (`PARSHA_LEAD` anchors at the start) — every spec
+  example has this shape, and it keeps the rule from firing on an unrelated
+  query that merely contains the word "parsha" somewhere in the middle.
+
+  **Fold-key collision tiebreak**: two different parsha names can
+  legitimately fold to the same short key (fold.js's phonetic reduction is
+  coarse by design — e.g. "Vaera" and "Behar" both fold to `"br"`), so exact
+  fold-key equality alone isn't safe enough to pick a specific book+range.
+  When `fold(NAME)` matches more than one table entry, `rewriteParshaMarker`
+  falls back to `lightNormalize` — a lighter, non-lossy pass (lowercase +
+  strip apostrophes/hyphens/whitespace only, no consonant folding or vowel
+  deletion) — to disambiguate. If that *still* doesn't pick a unique
+  candidate, the rewrite refuses to guess and leaves the query untouched
+  rather than risk resolving to the wrong parsha.
+- **Hebrew-script marker words** (דף, עמוד, פרק, פסוק, סימן, סעיף) are
+  handled by the same regexes as parallel alternations — cheap to add once
+  the Unicode-aware boundary check was already needed for `דף`. The marker
+  *word* may be Hebrew; the numeric *value* after it must still be Arabic
+  digits (gematria daf/perek values are out of scope, as above).
+
+Fixture-driven tests (`test/searchMarkers.test.js`) cover ≥15 cases
+including negatives — e.g. "Daf Yomi" as a title must NOT be rewritten
+(no digit follows "daf"), confirming the boundary/digit-adjacency
+requirements above don't over-fire on ordinary titles.
+
+## 3. Suggestion display: echoing the user's own spelling
+
+`matchLatinOffline` (`src/lib/nameSearch.js`) attaches a `display` field to
+every suggestion object, computed by `buildDisplayTitle(rawQueryTitle,
+candidateTitle)`. It rebuilds the candidate's title using the user's *own*
+spelling for whichever words they've already typed in full, word-aligned in
+order (skipping candidate words the query doesn't cover, e.g. a connector
+like "on" the user left out) — so a suggestion that's just a different
+transliteration of what's already in the box (typing "Bereishis", matching
+canonical "Bereshit") reads as confirmation rather than a correction. A
+query word that's only a partial prefix of the aligned candidate word (still
+being typed) is left in the candidate's canonical spelling. This is purely
+cosmetic: the real `title`/`key` used for resolution (`resolveSelection`)
+and for lexicon lookups are untouched.
+
+**`MIN_FOLD_LEN_FOR_DISPLAY_ECHO = 3`** guards against a short-key false
+match reading as a confirmed echo: below a 3-character fold key, two
+genuinely different words can collide (e.g. "Shab" and "Shebi." both fold to
+`"$b"` — see §4's short-key-collision note). Echoing the user's spelling for
+a match that short would disguise a wrong suggestion as an exact match,
+which is worse than just showing the plain canonical title — so below that
+length the canonical spelling is kept instead of the echo.
+
+## 4. The fold algorithm (`src/lib/fold.js`)
 
 `fold(title)` collapses a Latin-script Sefaria title string down to a coarse
 phonetic "skeleton" key, so that Ashkenazi and Sephardi spellings of the same
@@ -75,9 +160,9 @@ order, reordering these passes changes results:
 | Standalone-h deletion | Delete any `h` left after the digraph passes above have consumed `sh`/`ch`/`kh`/`ph` | Leftover `h`s are pure matres-lectionis/vowel-carriers with no independent consonant value: "Ohr"/"Or" -> `r`, "Sotah"/"Sota" -> `tt`, "HaChaim"/"Hachayim" -> `km`. |
 | Sav/tav (`th`/`t`/`s` -> `t`) | Collapses the Ashkenazi sav/Sephardi tav distinction | "Shabbos"/"Shabbat" both -> `...t`. (The `th` alternative can never actually fire in practice since standalone `h` is already deleted by the prior rule — kept anyway because the spec pins it as an explicit literal step.) |
 | Vowel deletion (`a`/`e`/`i`/`o`/`u` removed) | Only vowels; `y`/`j`/`g`/`d`/`l`/`m`/`n`/`p`/`r` (and any un-folded leftover like a plain `c`/`x`) pass through untouched | Vowel spelling is the least stable part of a transliteration; consonant skeletons carry the identifying signal. `y` is deliberately kept (not treated as a vowel) so "Yeshayohu" -> `y$yh` still matches "Yishayahu". |
-| Final alphabet strip (`[^a-z$0-9 ,]` removed) | Strips anything outside the folded consonant classes, digits, space, comma | Comma is deliberately *kept* — the build script's pruning rule (§4, rule i) compares folded pre-comma prefixes for "deep node" titles like "Shulchan Arukh, Orach Chayim", and needs the same `fold()` to produce a comma-bearing key for that comparison to work. |
+| Final alphabet strip (`[^a-z$0-9 ,]` removed) | Strips anything outside the folded consonant classes, digits, space, comma | Comma is deliberately *kept* — the build script's pruning rule (§6, rule i) compares folded pre-comma prefixes for "deep node" titles like "Shulchan Arukh, Orach Chayim", and needs the same `fold()` to produce a comma-bearing key for that comparison to work. |
 
-## 3. Lexicon JSON shape (`public/lexicon.json`)
+## 5. Lexicon JSON shape (`public/lexicon.json`)
 
 ```json
 {
@@ -107,13 +192,13 @@ the 2026-07-15 snapshot. Most of those are actually *mixed* Latin+Hebrew
 strings (e.g. a Siddur path ending in a Hebrew phrase), so the discriminator
 for exclusion is "contains a Hebrew codepoint," not "has no Latin letter."
 These titles are skipped from the lexicon entirely and keep the app's
-separate, always-live Hebrew search path (`src/lib/hebrewSearch.js`) — see §5.
+separate, always-live Hebrew search path (`src/lib/hebrewSearch.js`) — see §7.
 
 As of 2026-07-16 the shipped asset has **45,019 keys/titles/ranks** — folded
 from the snapshot's 66,569 Latin titles into 47,144 raw keys, then trimmed to
-45,019 by minimal rule-(i) pruning to fit the gzip budget (§4).
+45,019 by minimal rule-(i) pruning to fit the gzip budget (§6).
 
-## 4. Regeneration
+## 6. Regeneration
 
 ```
 node scripts/build-lexicon.mjs
@@ -182,12 +267,12 @@ not needed. The build is deterministic: rerunning produces a byte-identical
 leave only ~11,200 keys — rejected per the adjudication above.) Record the
 actual eligible/pruned counts here again if a future snapshot changes them.
 
-## 5. The fallback path
+## 7. The fallback path
 
 For a Latin-script query: offline lexicon match first
 (`matchLatinOffline`), and if that returns **zero hits** — or the lexicon
 hasn't finished loading yet — exactly **one** direct `/api/name` call as a
-fallback. There is **no variant fan-out** for Latin queries anymore (see §6
+fallback. There is **no variant fan-out** for Latin queries anymore (see §8
 for why the old fan-out approach was retired in favor of the fold table).
 
 For a Hebrew-script query, the pre-existing live path is unchanged: try the
@@ -199,10 +284,10 @@ typo-tolerant fallback would be pointless). This gating is preserved
 byte-for-byte in behavior from the original `fetchNameSuggestionsRobust`.
 This path stays a live per-keystroke fan-out (unlike the retired Latin one)
 because the Hebrew-codepoint title list is tiny — only 56 strings in
-Sefaria's whole title index (§3 above) — so building a Hebrew lexicon asset
+Sefaria's whole title index (§5 above) — so building a Hebrew lexicon asset
 wasn't worth it.
 
-## 6. Preserved live-API findings
+## 8. Preserved live-API findings
 
 These findings came from live testing against Sefaria's public API during
 the original `AddSource` build and the L2 rewrite verification. They explain
@@ -257,13 +342,13 @@ re-break a case that was fixed once already.
   what makes it resolvable, via `resolveSelection` querying the corrected
   title once selected.
 
-- **Hebrew fallback gating is preserved unchanged** (see §5) — deliberately
+- **Hebrew fallback gating is preserved unchanged** (see §7) — deliberately
   kept as a live, per-keystroke fan-out rather than migrated to an offline
   table, because the Hebrew-codepoint title list is only 56 strings; building
   a Hebrew lexicon asset for that few entries wasn't worth it. The lexicon
-  (`public/lexicon.json`) is Latin-only by construction (§3).
+  (`public/lexicon.json`) is Latin-only by construction (§5).
 
-## 7. Known-N/A book/commentary combos
+## 9. Known-N/A book/commentary combos
 
 *(Stub — no concrete entries recorded yet.)*
 
@@ -276,14 +361,14 @@ list belongs once one exists. When adding an entry, record: the exact query
 tried, why it's expected to be N/A (not a bug), and the date/session it was
 confirmed.
 
-## 8. Orchestrator adjudications (2026-07-16)
+## 10. Orchestrator adjudications (2026-07-16)
 
-- **(a) Pruning is minimal, not wholesale.** See §4 — each of the two safe
+- **(a) Pruning is minimal, not wholesale.** See §6 — each of the two safe
   pruning rules drops entries least-popular-first, only until the real gzip
   size is back under the target budget, never the entire eligible set.
 - **(b) The Hebrew path is preserved unchanged; the lexicon is Latin-only.**
   No attempt was made to fold Hebrew titles into `public/lexicon.json` or to
-  change `searchHebrewTitles`'s live fan-out behavior — see §5/§6.
+  change `searchHebrewTitles`'s live fan-out behavior — see §7/§8.
 - **(c) The lexicon is fetched via `import.meta.env.BASE_URL`.** Vite's
   configured base path is `/sefaria-era-fonts/` in the GitHub Pages build and
   `/` in dev; a bare `/lexicon.json` fetch would 404 once deployed under the
