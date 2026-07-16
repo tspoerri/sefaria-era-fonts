@@ -1,7 +1,10 @@
 // Thin client for Sefaria's public REST API. No backend, no auth.
-
-import { generateHebrewVariants, hasNikud, isHebrewText } from '../lib/hebrewSearch.js'
-import { generateTranslitVariants } from '../lib/translitVariants.js'
+//
+// Search POLICY (offline lexicon matching, Hebrew fallback gating, live-API
+// findings) lives in src/lib/nameSearch.js, not here — this file is pure
+// transport. See nameSearch.js's top comment block for the preserved
+// live-API knowledge that used to live in this file's comments (geresh/
+// gershayim address-split discovery, nikud stripping, fuzzy-match findings).
 
 const TEXTS_BASE = 'https://www.sefaria.org/api/texts/'
 const INDEX_BASE = 'https://www.sefaria.org/api/v2/index/'
@@ -62,17 +65,23 @@ export async function fetchIndex(indexTitle) {
   return result
 }
 
-// Autocomplete/typo-correction for the "add source" box, backed by Sefaria's
-// own name-resolution index — it already knows common transliteration
-// variants (e.g. "Brachot" -> "Berakhot") and tolerates minor misspellings
-// (e.g. "Genessis" -> "Genesis"), in both Hebrew and English. Returns at most
-// 8 deduped ref-type suggestions: { title, key, isPrimary }. Never throws;
-// returns [] on any failure so it can be wired straight into an input's
-// onChange without extra guarding. Pass an AbortSignal to cancel stale
-// requests from a fast typist.
-export async function fetchNameSuggestions(query, { signal } = {}) {
+// Thin wrapper around Sefaria's name-resolution/autocomplete endpoint, used
+// by src/lib/nameSearch.js as its one live-call primitive (both for the
+// Hebrew fallback path and the Latin 0-hit/loading fallback and selection-
+// time resolve). Returns:
+//   - `suggestions`: at most 8 deduped ref-type completions,
+//     `{ title, key, isPrimary }`
+//   - `ref`: the canonical ref string Sefaria resolved the full query to
+//     (e.g. "Rashi on Genesis 1:1"), or null if the query didn't resolve to
+//     a single ref (`is_ref` false/absent) — this is what
+//     `nameSearch.resolveSelection` reads to get the canonical ref at
+//     selection time.
+// Never throws (except to propagate an AbortError so callers can distinguish
+// a deliberate cancel from any other failure); returns an empty/null shape
+// on any other failure so it's safe to call without extra guarding.
+export async function fetchNameRaw(query, { signal } = {}) {
   const trimmed = (query || '').trim()
-  if (trimmed.length < 2) return []
+  if (trimmed.length < 2) return { suggestions: [], ref: null }
 
   const url = `${NAME_BASE}${encodeURIComponent(trimmed)}?ref_only=0`
   let res
@@ -80,16 +89,16 @@ export async function fetchNameSuggestions(query, { signal } = {}) {
     res = await fetch(url, { signal })
   } catch (err) {
     if (err && err.name === 'AbortError') throw err
-    return []
+    return { suggestions: [], ref: null }
   }
 
-  if (!res.ok) return []
+  if (!res.ok) return { suggestions: [], ref: null }
 
   let data
   try {
     data = await res.json()
   } catch {
-    return []
+    return { suggestions: [], ref: null }
   }
 
   const objects = Array.isArray(data.completion_objects) ? data.completion_objects : []
@@ -101,79 +110,7 @@ export async function fetchNameSuggestions(query, { signal } = {}) {
     suggestions.push({ title: obj.title, key: obj.key, isPrimary: !!obj.is_primary })
     if (suggestions.length >= 8) break
   }
-  return suggestions
-}
 
-const MAX_SUGGESTIONS = 8
-
-function mergeSuggestions(lists) {
-  const seen = new Set()
-  const merged = []
-  for (const list of lists) {
-    for (const s of list) {
-      if (seen.has(s.title)) continue
-      seen.add(s.title)
-      merged.push(s)
-      if (merged.length >= MAX_SUGGESTIONS) return merged
-    }
-  }
-  return merged
-}
-
-// Same as fetchNameSuggestions, but for queries that come up short it also
-// tries alternate spellings, in whichever direction matches the script:
-// - Hebrew queries get letter-level variants built from commonly
-//   confused/omitted letters (see src/lib/hebrewSearch.js) — e.g. a query
-//   spelled with "כ" where the real title uses "ח" (both sound "kh") still
-//   surfaces a match.
-// - Latin/romanized queries get Ashkenazi -> Sephardi/canonical spelling
-//   variants (see src/lib/translitVariants.js) — e.g. "Beraishis" or "Rashi
-//   on Shemos" still surfaces "Bereishit"/"Rashi on Shemot", which Sefaria's
-//   own name index doesn't resolve on its own.
-// The direct query always runs first and its results are never displaced;
-// variants only fill in gaps, merged in after direct's own results.
-// `rawQuery` is the pre-normalization input, used only to check whether the
-// user pasted in vocalized Hebrew text (nikud) — if so, it's almost
-// certainly copied from a correctly-spelled source rather than typed, so the
-// Hebrew typo fallback is skipped.
-//
-// The Hebrew and Latin branches use different triggers for the fallback.
-// Hebrew: only bother once direct comes up short (< 3 results) — Sefaria's
-// index handles most Hebrew spelling fine, and letter-swap variants are
-// numerous enough that firing them on every keystroke would be wasteful.
-// Latin: always run variants alongside direct, regardless of direct's
-// count. This looks redundant but isn't: live testing against Sefaria's API
-// showed that a bad Ashkenazi-spelled query (e.g. "Rashi on Beraishis",
-// "Tosafos on Brachos") routinely comes back with 3-10 *irrelevant*
-// fuzzy-matched refs (e.g. "Rashi on Amos", "Onkelos Exodus") — so a
-// `direct.length < 3` gate would almost never fire for exactly the
-// compound-title queries this fallback exists to fix. mergeSuggestions
-// still keeps direct's results first, so this can't push a good direct
-// match down or out.
-export async function fetchNameSuggestionsRobust(query, { signal, rawQuery } = {}) {
-  const trimmed = (query || '').trim()
-  const direct = await fetchNameSuggestions(trimmed, { signal })
-
-  let variants = []
-  if (isHebrewText(trimmed)) {
-    if (direct.length >= 3 || hasNikud(rawQuery || '')) return direct
-    variants = generateHebrewVariants(trimmed)
-  } else if (/[a-z]/i.test(trimmed)) {
-    variants = generateTranslitVariants(trimmed)
-  }
-
-  if (variants.length === 0) return direct
-
-  const variantResults = await Promise.all(
-    variants.map((v) => fetchNameSuggestions(v, { signal }))
-  )
-
-  // mergeSuggestions fills greedily from the first list up to
-  // MAX_SUGGESTIONS, so if direct alone already has a full 8 results —
-  // which happens even when every one of them is an irrelevant fuzzy match,
-  // as seen with "Rashi on Beraishis" et al above — variant results would
-  // never get a slot. Cap direct's contribution here so there's always room
-  // left for a correct variant match to surface; direct's best (first, per
-  // Sefaria's own ranking) results still lead.
-  return mergeSuggestions([direct.slice(0, 5), ...variantResults])
+  const ref = data && data.is_ref && data.ref ? data.ref : null
+  return { suggestions, ref }
 }

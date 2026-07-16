@@ -1,8 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { fetchNameSuggestionsRobust } from "../api/sefaria.js";
+import { searchTitles, resolveSelection, offlineSearch } from "../lib/nameSearch.js";
 import { normalizeSourceInput, splitTitleAndAddress } from "../lib/inputNormalize.js";
 
-const DEBOUNCE_MS = 200;
+// Fallback/API paths (Hebrew live fallback, Latin 0-hit/lexicon-loading
+// fallback) are debounced so a fast typist doesn't fan out a request per
+// keystroke; offline lexicon matching (see nameSearch.offlineSearch) needs
+// no network and runs synchronously on every keystroke instead — when it
+// already has a confident answer, the debounced call below is skipped
+// entirely, so zero requests go out while typing a known Latin title.
+const DEBOUNCE_MS = 250;
 
 export default function AddSource({ onAdd, busy, error }) {
   const [ref, setRef] = useState("");
@@ -32,27 +38,22 @@ export default function AddSource({ onAdd, busy, error }) {
     };
   }, []);
 
-  function scheduleSuggestions(value) {
+  // The debounced/authoritative path: Hebrew (always live), or Latin when
+  // offline matching couldn't give a confident synchronous answer (lexicon
+  // still loading, or a genuine zero-hit that needs Sefaria's own fuzzy
+  // fallback). At most one request fires per debounce window.
+  function scheduleSuggestions(normalized, rawValue) {
     clearTimeout(debounceRef.current);
     abortRef.current?.abort();
-
-    const normalized = normalizeSourceInput(value);
-    const { title, address } = splitTitleAndAddress(normalized);
-    if (title.length < 2) {
-      setSuggestions([]);
-      setOpen(false);
-      return;
-    }
 
     debounceRef.current = setTimeout(async () => {
       const controller = new AbortController();
       abortRef.current = controller;
       try {
-        const results = await fetchNameSuggestionsRobust(title, {
+        const results = await searchTitles(normalized, {
           signal: controller.signal,
-          rawQuery: value,
+          rawQuery: rawValue,
         });
-        setPendingAddress(address);
         setSuggestions(results);
         setOpen(results.length > 0);
         setHighlight(-1);
@@ -68,14 +69,48 @@ export default function AddSource({ onAdd, busy, error }) {
   function handleChange(e) {
     const value = e.target.value;
     setRef(value);
-    scheduleSuggestions(value);
+
+    const normalized = normalizeSourceInput(value);
+    const { title, address } = splitTitleAndAddress(normalized);
+    setPendingAddress(address);
+
+    if (title.trim().length < 2) {
+      clearTimeout(debounceRef.current);
+      abortRef.current?.abort();
+      setSuggestions([]);
+      setOpen(false);
+      return;
+    }
+
+    // Synchronous, network-free lexicon lookup, tried on every keystroke.
+    // Returns null when it can't answer offline (Hebrew text, or the
+    // lexicon asset hasn't finished loading yet) — only then do we fall
+    // back to the debounced live path.
+    const immediate = offlineSearch(normalized);
+    if (immediate !== null) {
+      setSuggestions(immediate);
+      setOpen(immediate.length > 0);
+      setHighlight(-1);
+      if (immediate.length > 0) {
+        // Confident offline answer already in hand — no need for a live
+        // fallback call this keystroke.
+        clearTimeout(debounceRef.current);
+        abortRef.current?.abort();
+        return;
+      }
+    }
+
+    scheduleSuggestions(normalized, value);
   }
 
-  function selectSuggestion(suggestion) {
-    setRef(suggestion.title + pendingAddress);
-    setSuggestions([]);
+  // The only network call in the Latin happy path: resolves the picked
+  // suggestion (+ any pending address) to Sefaria's canonical ref.
+  async function selectSuggestion(suggestion) {
     setOpen(false);
     setHighlight(-1);
+    setSuggestions([]);
+    const resolved = await resolveSelection(suggestion.title, pendingAddress);
+    setRef(resolved);
   }
 
   function submit(value) {
@@ -88,10 +123,15 @@ export default function AddSource({ onAdd, busy, error }) {
     setHighlight(-1);
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     if (open && highlight >= 0 && suggestions[highlight]) {
-      submit(suggestions[highlight].title);
+      const picked = suggestions[highlight];
+      setOpen(false);
+      setHighlight(-1);
+      setSuggestions([]);
+      const resolved = await resolveSelection(picked.title, pendingAddress);
+      submit(resolved);
       return;
     }
     submit(ref);
