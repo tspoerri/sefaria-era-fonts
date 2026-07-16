@@ -1,7 +1,7 @@
 import SourceCard from "./SourceCard.jsx";
 import { t } from "../lib/strings.js";
 
-export default function Sheet({ sources, onRemove, onMove, settings }) {
+export default function Sheet({ sources, onRemove, onMove, onUpdateSource, settings }) {
   const siteLang = (settings && settings.siteLang) || "en";
 
   if (!sources.length) {
@@ -20,6 +20,7 @@ export default function Sheet({ sources, onRemove, onMove, settings }) {
           onRemove={() => onRemove(source.id)}
           onMoveUp={() => onMove(source.id, -1)}
           onMoveDown={() => onMove(source.id, 1)}
+          onUpdate={(patch) => onUpdateSource(source.id, patch)}
         />
       ))}
     </div>

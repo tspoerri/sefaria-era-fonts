@@ -376,6 +376,226 @@ body {
   direction: rtl;
 }
 
+.source-card-title-edit {
+  border: none;
+  background: transparent;
+  color: var(--muted-2);
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0 0.15rem;
+}
+
+.source-card-title-edit:hover {
+  color: var(--fg);
+}
+
+/* Title editor */
+.title-editor {
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 6px;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.title-editor label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.title-editor-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.title-editor-row input {
+  flex: 1;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--input-border);
+  border-radius: 6px;
+  background: var(--card-bg);
+  color: var(--fg);
+  font-size: 0.9rem;
+}
+
+.title-editor-reset {
+  border: none;
+  background: transparent;
+  color: var(--muted-2);
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.title-editor-reset:hover {
+  color: var(--fg);
+}
+
+.title-editor-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.title-editor-actions button {
+  padding: 0.35rem 0.85rem;
+  border: 1px solid var(--input-border-strong);
+  border-radius: 6px;
+  background: var(--input-bg);
+  color: var(--fg);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+/* Text edit controls + editor */
+.source-card-text-controls {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.source-card-text-controls button {
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--input-border);
+  border-radius: 4px;
+  background: var(--input-bg);
+  color: var(--fg);
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.text-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 6px;
+  padding: 0.9rem;
+  margin-bottom: 0.75rem;
+}
+
+.text-editor-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.text-editor-words {
+  line-height: 2.1;
+  user-select: none;
+}
+
+.text-editor-word {
+  display: inline-block;
+  padding: 0.1rem 0.2rem;
+  margin: 0.05rem;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.text-editor-word:hover {
+  background: var(--hover-bg-2);
+}
+
+.text-editor-word.is-selected {
+  background: var(--button-bg);
+  color: var(--button-fg);
+}
+
+.text-editor-empty {
+  color: var(--muted-2);
+  font-style: italic;
+}
+
+.text-editor-toolbar {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.text-editor-toolbar button {
+  padding: 0.3rem 0.65rem;
+  border: 1px solid var(--input-border-strong);
+  border-radius: 6px;
+  background: var(--card-bg);
+  color: var(--fg);
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.text-editor-toolbar button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.text-editor-pending {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.text-editor-pending input {
+  flex: 1;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--input-border);
+  border-radius: 6px;
+  background: var(--card-bg);
+  color: var(--fg);
+}
+
+.text-editor-pending button {
+  padding: 0.3rem 0.65rem;
+  border: 1px solid var(--input-border-strong);
+  border-radius: 6px;
+  background: var(--input-bg);
+  color: var(--fg);
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.text-editor-notice {
+  color: var(--error);
+  font-size: 0.8rem;
+  margin: 0;
+}
+
+.text-editor-hint {
+  color: var(--muted-2);
+  font-size: 0.78rem;
+  margin: 0;
+  min-height: 1em;
+}
+
+.text-editor-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.text-editor-save {
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--input-border-strong);
+  border-radius: 6px;
+  background: var(--button-bg);
+  color: var(--button-fg);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.text-editor-cancel {
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--input-border-strong);
+  border-radius: 6px;
+  background: var(--input-bg);
+  color: var(--fg);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
 .source-attribution-tag {
   font-size: 0.75rem;
   color: var(--muted-2);
@@ -507,7 +727,11 @@ body {
   .print-button,
   .icon-cluster,
   .settings-menu-overlay,
-  .source-card-controls {
+  .source-card-controls,
+  .source-card-title-edit,
+  .source-card-text-controls,
+  .title-editor,
+  .text-editor {
     display: none !important;
   }
 

@@ -87,6 +87,10 @@ export default function App() {
     setSources((prev) => prev.filter((s) => s.id !== id));
   }
 
+  function handleUpdateSource(id, patch) {
+    setSources((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+  }
+
   function handleMove(id, direction) {
     setSources((prev) => {
       const index = prev.findIndex((s) => s.id === id);
@@ -150,6 +154,7 @@ export default function App() {
         sources={sources}
         onRemove={handleRemove}
         onMove={handleMove}
+        onUpdateSource={handleUpdateSource}
         settings={settings}
       />
     </div>
