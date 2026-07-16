@@ -14,8 +14,19 @@ const NAME_BASE = 'https://www.sefaria.org/api/name/'
 // Returns the raw API response: { he, text, ref, heRef, categories, primary_category,
 // type, book, indexTitle, ... }. `he`/`text` may be a string (single segment) or an
 // array of strings (range) — callers normalize as needed.
-export async function fetchText(ref) {
-  const url = `${TEXTS_BASE}${encodeURIComponent(ref)}?context=0&commentary=0&pad=0`
+//
+// `options.ven`, when given a non-empty string, requests a specific English
+// version by title (`&ven=<encoded title>`). Sefaria falls back to its
+// default version's Hebrew when the version doesn't cover a ref (or returns
+// an empty English string) — callers wanting a guaranteed-populated English
+// side should check the response and refetch without `ven` themselves (see
+// src/lib/sheetStorage.js isEmptyEnglish + App.jsx handleAdd).
+export async function fetchText(ref, options = {}) {
+  const { ven } = options
+  let url = `${TEXTS_BASE}${encodeURIComponent(ref)}?context=0&commentary=0&pad=0`
+  if (ven) {
+    url += `&ven=${encodeURIComponent(ven)}`
+  }
   let res
   try {
     res = await fetch(url)

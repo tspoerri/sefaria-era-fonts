@@ -1,8 +1,11 @@
 import SourceCard from "./SourceCard.jsx";
+import { t } from "../lib/strings.js";
 
-export default function Sheet({ sources, onRemove, onMove }) {
+export default function Sheet({ sources, onRemove, onMove, settings }) {
+  const siteLang = (settings && settings.siteLang) || "en";
+
   if (!sources.length) {
-    return <p className="sheet-empty">No sources yet — add one above.</p>;
+    return <p className="sheet-empty">{t("noSources", siteLang)}</p>;
   }
 
   return (
@@ -11,6 +14,7 @@ export default function Sheet({ sources, onRemove, onMove }) {
         <SourceCard
           key={source.id}
           source={source}
+          settings={settings}
           isFirst={index === 0}
           isLast={index === sources.length - 1}
           onRemove={() => onRemove(source.id)}
