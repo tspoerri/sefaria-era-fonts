@@ -41,6 +41,8 @@ describe("DEFAULTS", () => {
     assert.equal(DEFAULTS.showAttribution, true);
     assert.equal(DEFAULTS.siteLang, "en");
     assert.equal(DEFAULTS.darkMode, "system");
+    assert.equal(DEFAULTS.keyboard.layout, "alephbet");
+    assert.equal(DEFAULTS.keyboard.physical, "original");
   });
 });
 
@@ -62,6 +64,14 @@ describe("loadSettings / saveSettings", () => {
     // untouched nested fields survive the merge
     assert.equal(loaded.body.modeOther, DEFAULTS.body.modeOther);
     assert.equal(loaded.titleBar.language, DEFAULTS.titleBar.language);
+  });
+
+  test("round-trips a saved keyboard override, merged over DEFAULTS", () => {
+    saveSettings({ keyboard: { physical: "israeli" } });
+    const loaded = loadSettings();
+    assert.equal(loaded.keyboard.physical, "israeli");
+    // untouched nested field survives the merge
+    assert.equal(loaded.keyboard.layout, DEFAULTS.keyboard.layout);
   });
 
   test("falls back to DEFAULTS on corrupt JSON", () => {

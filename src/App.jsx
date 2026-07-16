@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import AddSource from "./components/AddSource.jsx";
 import Sheet from "./components/Sheet.jsx";
 import SettingsMenu from "./components/SettingsMenu.jsx";
+import HebrewKeyboard from "./components/HebrewKeyboard.jsx";
 import Outline from "./components/Outline.jsx";
 import { fetchText, fetchIndex } from "./api/sefaria.js";
 import { classifyEra } from "./lib/era.js";
@@ -41,6 +42,7 @@ export default function App() {
   const [error, setError] = useState(null);
   const [settings, setSettings] = useState(() => loadSettings());
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [undoStack, setUndoStack] = useState([]);
   const undoTimers = useRef(new Map());
@@ -79,6 +81,15 @@ export default function App() {
 
   function updateSettings(patch) {
     setSettings((prev) => ({ ...prev, ...patch }));
+  }
+
+  function closeKeyboard() {
+    setKeyboardOpen(false);
+    // Closing always reverts hardware typing to normal, regardless of what
+    // physical mapping was selected while the popup was open.
+    setSettings((prev) =>
+      prev.keyboard.physical === "original" ? prev : { ...prev, keyboard: { ...prev.keyboard, physical: "original" } }
+    );
   }
 
   async function handleAdd(ref) {
@@ -244,6 +255,8 @@ export default function App() {
               onUpdateSettings={updateSettings}
               settingsOpen={settingsOpen}
               onToggleSettings={() => setSettingsOpen((v) => !v)}
+              keyboardOpen={keyboardOpen}
+              onToggleKeyboard={() => (keyboardOpen ? closeKeyboard() : setKeyboardOpen(true))}
             />
           </div>
         </header>
@@ -255,6 +268,10 @@ export default function App() {
             onClose={() => setSettingsOpen(false)}
             onResetAll={handleResetAll}
           />
+        ) : null}
+
+        {keyboardOpen ? (
+          <HebrewKeyboard settings={settings} onChange={updateSettings} onClose={closeKeyboard} />
         ) : null}
 
         <AddSource onAdd={handleAdd} busy={busy} error={error} />
@@ -308,7 +325,14 @@ function AddBlockControls({ siteLang, onAddHeading, onAddText, onAddSpacer }) {
   );
 }
 
-function IconCluster({ settings, onUpdateSettings, settingsOpen, onToggleSettings }) {
+function IconCluster({
+  settings,
+  onUpdateSettings,
+  settingsOpen,
+  onToggleSettings,
+  keyboardOpen,
+  onToggleKeyboard,
+}) {
   const siteLang = settings.siteLang;
 
   function cycleDarkMode() {
@@ -356,9 +380,10 @@ function IconCluster({ settings, onUpdateSettings, settingsOpen, onToggleSetting
       <button
         type="button"
         className="icon-button"
-        disabled
-        aria-label="Hebrew keyboard"
-        title="Hebrew keyboard (coming soon)"
+        onClick={onToggleKeyboard}
+        aria-label={t("keyboardTitle", siteLang)}
+        aria-expanded={keyboardOpen}
+        title={t("keyboardTitle", siteLang)}
       >
         {"⌨️"}
       </button>

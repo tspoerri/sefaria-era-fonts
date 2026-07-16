@@ -20,6 +20,10 @@ export const DEFAULTS = {
   showAttribution: true,
   siteLang: "en", // "en" | "he" — chrome language, not source content
   darkMode: "system", // "light" | "dark" | "system"
+  keyboard: {
+    layout: "alephbet", // "alephbet" | "israeli" | "qwerty" — on-screen arrangement
+    physical: "original", // "original" | "israeli" | "qwerty" — hardware remap while popup is open
+  },
 };
 
 function deepMerge(base, override) {

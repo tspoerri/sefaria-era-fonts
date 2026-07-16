@@ -97,6 +97,22 @@ export const STRINGS = {
     typeSpacer: "Spacer",
     undoRemovedToast: "Source removed",
     undo: "Undo",
+
+    // Wave D2 — Hebrew keyboard popup
+    keyboardTitle: "Hebrew keyboard",
+    keyboardClose: "Close keyboard",
+    keyboardLayout: "On-screen layout",
+    keyboardLayoutAlephbet: "Alef-bet (alphabetical)",
+    keyboardLayoutIsraeli: "Israeli (SI-1452)",
+    keyboardLayoutQwerty: "QWERTY (phonetic)",
+    keyboardPhysical: "Physical typing (while open)",
+    keyboardPhysicalOriginal: "Off — type normally",
+    keyboardPhysicalIsraeli: "Israeli (SI-1452)",
+    keyboardPhysicalQwerty: "QWERTY (phonetic)",
+    keyboardShiftFinalsNote: "Shift + key types the final (sofit) letter, where one exists.",
+    keyboardBackspace: "Backspace",
+    keyboardSpace: "Space",
+    keyboardNoTarget: "Click into a text field, then use the keys below.",
   },
   he: {
     sheetTitlePlaceholder: "דף מקורות ללא שם",
@@ -189,6 +205,22 @@ export const STRINGS = {
     typeSpacer: "רווח",
     undoRemovedToast: "המקור הוסר",
     undo: "בטל",
+
+    // Wave D2 — Hebrew keyboard popup
+    keyboardTitle: "מקלדת עברית",
+    keyboardClose: "סגור מקלדת",
+    keyboardLayout: "פריסה על המסך",
+    keyboardLayoutAlephbet: "אלף-בית (לפי סדר אלפביתי)",
+    keyboardLayoutIsraeli: "ישראלית (SI-1452)",
+    keyboardLayoutQwerty: "QWERTY (פונטית)",
+    keyboardPhysical: "הקלדה פיזית (בזמן שהמקלדת פתוחה)",
+    keyboardPhysicalOriginal: "כבוי — הקלד כרגיל",
+    keyboardPhysicalIsraeli: "ישראלית (SI-1452)",
+    keyboardPhysicalQwerty: "QWERTY (פונטית)",
+    keyboardShiftFinalsNote: "מקש Shift + אות מקליד אות סופית, במידה וקיימת.",
+    keyboardBackspace: "מחיקה לאחור",
+    keyboardSpace: "רווח",
+    keyboardNoTarget: "לחץ על שדה טקסט, ואז השתמש במקשים למטה.",
   },
 };
 
