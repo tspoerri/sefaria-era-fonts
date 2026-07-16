@@ -148,15 +148,67 @@ function wordPrefixCandidates(lexicon, queryWords, seenTitles, maxResults) {
   return result;
 }
 
+// Below this fold-key length, two genuinely different words can collide
+// (e.g. "Shab" and "Shebi." both fold to "$b") — see docs/SEARCH.md's notes
+// on short-key collisions. Echoing the user's spelling for a match that
+// short would disguise a wrong suggestion as an exact echo, which is worse
+// than the plain-canonical-title correction feel this is meant to fix, so
+// below this length we leave the canonical spelling in place instead.
+const MIN_FOLD_LEN_FOR_DISPLAY_ECHO = 3;
+
+// Rebuilds a candidate title using the user's own spelling for whichever
+// words they've already typed in full, so a suggestion that's just a
+// different transliteration of what's in the box (Bereishis vs Bereshit)
+// doesn't read as a correction — only words the user hasn't typed (or has
+// only partly typed) keep the lexicon's canonical spelling. Matching is by
+// fold()-equality per word, aligned in order (skipping candidate words the
+// query doesn't cover, e.g. a connector like "on" the user left out), so it
+// degrades gracefully back to the plain canonical title when the query is
+// just a short prefix. Purely cosmetic — the real `title`/`key` used for
+// resolution and insertion are untouched.
+function buildDisplayTitle(rawQueryTitle, candidateTitle) {
+  const queryWords = (rawQueryTitle || "").trim().split(/\s+/).filter(Boolean);
+  const candWords = candidateTitle.split(" ");
+  const resultWords = candWords.slice();
+
+  let ci = 0;
+  for (const qWord of queryWords) {
+    const qFold = fold(qWord);
+    if (!qFold) continue;
+    while (ci < candWords.length) {
+      const cFold = fold(candWords[ci]);
+      if (cFold === qFold) {
+        if (qFold.length >= MIN_FOLD_LEN_FOR_DISPLAY_ECHO) {
+          resultWords[ci] = qWord;
+        }
+        ci++;
+        break;
+      } else if (cFold.startsWith(qFold)) {
+        // Word still being typed — leave the canonical spelling for it (and
+        // don't try to align further query words past this point).
+        ci++;
+        break;
+      }
+      ci++; // candidate word the query doesn't cover; keep scanning
+    }
+  }
+
+  return resultWords.join(" ");
+}
+
 /**
  * Match a Latin-script title string against a loaded lexicon object. Pure
  * function: no I/O, no module state. Priority: exact-key hits, then
  * key-prefix hits, then (for multiword queries only) per-word-prefix hits;
  * each tier internally sorted by ascending TOC rank then shorter title.
- * Returns at most `maxResults` suggestions shaped `{ title, key, isPrimary }`
- * — `key` is set to `title` (offline hits don't know Sefaria's canonical
- * book key; `resolveSelection` gets the real canonical ref at selection
- * time) and `isPrimary` is true only for exact-key hits.
+ * Returns at most `maxResults` suggestions shaped
+ * `{ title, key, isPrimary, display }` — `key` is set to `title` (offline
+ * hits don't know Sefaria's canonical book key; `resolveSelection` gets the
+ * real canonical ref at selection time), `isPrimary` is true only for
+ * exact-key hits, and `display` (see `buildDisplayTitle`) is what the UI
+ * should render — it echoes back the user's own spelling for the words
+ * they've already typed, so a same-name-different-transliteration match
+ * doesn't read as a correction.
  */
 export function matchLatinOffline(lexicon, title, maxResults = MAX_SUGGESTIONS) {
   if (!isValidLexiconShape(lexicon) || lexicon.keys.length === 0) return [];
@@ -196,6 +248,7 @@ export function matchLatinOffline(lexicon, title, maxResults = MAX_SUGGESTIONS) 
     title: titles[i],
     key: titles[i],
     isPrimary: exactSet.has(i),
+    display: buildDisplayTitle(title, titles[i]),
   }));
 }
 

@@ -125,8 +125,11 @@ export default function AddSource({ onAdd, busy, error }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (open && highlight >= 0 && suggestions[highlight]) {
-      const picked = suggestions[highlight];
+    if (open && suggestions.length > 0) {
+      // Enter picks whichever suggestion is highlighted, defaulting to the
+      // top one so pressing Enter on the first match doesn't force the user
+      // to arrow-down to it first.
+      const picked = suggestions[highlight >= 0 ? highlight : 0];
       setOpen(false);
       setHighlight(-1);
       setSuggestions([]);
@@ -185,7 +188,7 @@ export default function AddSource({ onAdd, busy, error }) {
                   }}
                   onMouseEnter={() => setHighlight(i)}
                 >
-                  {s.title}
+                  {s.display ?? s.title}
                 </li>
               ))}
             </ul>
