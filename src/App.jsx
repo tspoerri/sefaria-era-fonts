@@ -1,14 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import AddSource from "./components/AddSource.jsx";
+import ImportSheet from "./components/ImportSheet.jsx";
 import Sheet from "./components/Sheet.jsx";
 import SettingsMenu from "./components/SettingsMenu.jsx";
 import HebrewKeyboard from "./components/HebrewKeyboard.jsx";
 import Outline from "./components/Outline.jsx";
-import { fetchText, fetchIndex } from "./api/sefaria.js";
+import { fetchText, fetchIndex, fetchShape, fetchSheet } from "./api/sefaria.js";
 import { classifyEra } from "./lib/era.js";
 import { loadSheet, saveSheet, buildSourceFromResponse, isEmptyEnglish } from "./lib/sheetStorage.js";
 import { loadSettings, saveSettings, DEFAULTS } from "./lib/settings.js";
 import { t } from "./lib/strings.js";
+import { estimateSegmentCount, isLargeFetch } from "./lib/fetchGuard.js";
+import { parseSheetIdFromInput, mapSheetToBlockDescriptors } from "./lib/sheetImport.js";
 import {
   newSourceBlock,
   newHeadingBlock,
@@ -40,6 +43,9 @@ export default function App() {
   const [blocks, setBlocks] = useState(initial.blocks);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  const [pendingLargeFetch, setPendingLargeFetch] = useState(null); // {ref, count} | null
+  const [importBusy, setImportBusy] = useState(false);
+  const [importError, setImportError] = useState(null);
   const [settings, setSettings] = useState(() => loadSettings());
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
@@ -119,8 +125,19 @@ export default function App() {
   // 4). Bulk items are resolved/added one at a time, in order; a failure on
   // one item is recorded but does NOT abort the rest, and every failure is
   // surfaced together once the whole batch finishes.
+  //
+  // SPEC.md Wave 2 item 5 (guard huge fetches): a single-ref submission goes
+  // through the size-check/confirm gate below (handleAddSingle) instead of
+  // straight to addOneSource. A bulk pipe-submission does NOT — pausing for
+  // a confirm dialog per item would turn "paste ten refs" into ten modal
+  // interruptions, worse UX than the guard is meant to prevent. Bulk items
+  // still fetch fine either way; they just don't get the pre-flight warning.
   async function handleAdd(refOrRefs) {
     const items = Array.isArray(refOrRefs) ? refOrRefs : [refOrRefs];
+    if (items.length === 1) {
+      await handleAddSingle(items[0]);
+      return;
+    }
     setBusy(true);
     setError(null);
     const failures = [];
@@ -129,13 +146,120 @@ export default function App() {
         await addOneSource(item);
       } catch (err) {
         const message = err && err.message ? err.message : "Failed to add source.";
-        failures.push(items.length > 1 ? `"${item}": ${message}` : message);
+        failures.push(`"${item}": ${message}`);
       }
     }
     if (failures.length > 0) {
       setError(failures.join(" | "));
     }
     setBusy(false);
+  }
+
+  // Single-ref add path: a cheap /api/shape pre-check (no text content
+  // downloaded) estimates the segment count before committing to the full
+  // fetchText() call. A large-but-unconfirmed ref surfaces the warning
+  // banner and stops here (no fetch yet, no spinner left running) instead
+  // of silently pulling the whole thing down or silently refusing to add
+  // it. An inconclusive shape check (count === null, e.g. the shape
+  // endpoint failed) is NOT treated as large — it just proceeds normally.
+  async function handleAddSingle(ref) {
+    setBusy(true);
+    setError(null);
+    setPendingLargeFetch(null);
+    try {
+      const shape = await fetchShape(ref);
+      const count = estimateSegmentCount(shape);
+      if (isLargeFetch(count)) {
+        setPendingLargeFetch({ ref, count });
+        setBusy(false);
+        return;
+      }
+      await addOneSource(ref);
+    } catch (err) {
+      setError(err && err.message ? err.message : "Failed to add source.");
+    }
+    setBusy(false);
+  }
+
+  // User confirmed a large fetch from the warning banner — proceed with the
+  // normal fetch (spinner via `busy`, per SPEC.md Wave 2 item 5).
+  async function handleConfirmLargeFetch() {
+    if (!pendingLargeFetch) return;
+    const ref = pendingLargeFetch.ref;
+    setPendingLargeFetch(null);
+    setBusy(true);
+    setError(null);
+    try {
+      await addOneSource(ref);
+    } catch (err) {
+      setError(err && err.message ? err.message : "Failed to add source.");
+    }
+    setBusy(false);
+  }
+
+  function handleCancelLargeFetch() {
+    setPendingLargeFetch(null);
+  }
+
+  // SPEC.md Wave 2 item 6 — empties the sheet, but only after an explicit
+  // confirmation. Reuses the same window.confirm pattern SettingsMenu's
+  // "reset all" already uses (resetAllConfirm) rather than building a new
+  // modal component.
+  function handleClearAll() {
+    if (blocks.length === 0) return;
+    if (!window.confirm(t("clearAllConfirm", siteLang))) return;
+    undoTimers.current.forEach((timerId) => clearTimeout(timerId));
+    undoTimers.current.clear();
+    setUndoStack([]);
+    setBlocks([]);
+  }
+
+  // SPEC.md Wave 2 item 7 — import a Sefaria sheet by URL/ID. Source nodes
+  // go through the same fetchText/fetchIndex/classifyEra pipeline as a
+  // normal add (so imported sources get real era-based fonts, not whatever
+  // the sheet's own snapshot text looked like); outsideText/comment/header
+  // nodes become text/heading blocks directly. Unsupported nodes were
+  // already dropped by mapSheetToBlockDescriptors. Per-source failures are
+  // collected and reported together, same resilience pattern as bulk add —
+  // one bad ref in an imported sheet shouldn't abort the whole import.
+  async function handleImportSheet(rawInput) {
+    setImportError(null);
+    const id = parseSheetIdFromInput(rawInput);
+    if (!id) {
+      setImportError(t("importSheetInvalidId", siteLang));
+      return;
+    }
+    setImportBusy(true);
+    try {
+      const sheetData = await fetchSheet(id);
+      const descriptors = mapSheetToBlockDescriptors(sheetData && sheetData.sources);
+      if (descriptors.length === 0) {
+        setImportError(t("importSheetNoSupportedSources", siteLang));
+        setImportBusy(false);
+        return;
+      }
+      const failures = [];
+      for (const descriptor of descriptors) {
+        if (descriptor.type === "source") {
+          try {
+            await addOneSource(descriptor.ref);
+          } catch (err) {
+            const message = err && err.message ? err.message : "Failed to add source.";
+            failures.push(`"${descriptor.ref}": ${message}`);
+          }
+        } else if (descriptor.type === "text") {
+          setBlocks((prev) => [...prev, newTextBlock(descriptor.text)]);
+        } else if (descriptor.type === "heading") {
+          setBlocks((prev) => [...prev, newHeadingBlock(descriptor.text)]);
+        }
+      }
+      if (failures.length > 0) {
+        setImportError(failures.join(" | "));
+      }
+    } catch (err) {
+      setImportError(err && err.message ? err.message : "Failed to import sheet.");
+    }
+    setImportBusy(false);
   }
 
   function handleUpdateSourceBlock(blockId, patch) {
@@ -263,6 +387,14 @@ export default function App() {
           <div className="app-header-actions">
             <button
               type="button"
+              className="clear-all-button"
+              onClick={handleClearAll}
+              disabled={blocks.length === 0}
+            >
+              {t("clearAll", siteLang)}
+            </button>
+            <button
+              type="button"
               className="print-button"
               onClick={() => window.print()}
             >
@@ -293,6 +425,22 @@ export default function App() {
         ) : null}
 
         <AddSource onAdd={handleAdd} busy={busy} error={error} />
+
+        {pendingLargeFetch ? (
+          <div className="large-fetch-warning" role="alert">
+            <p>{t("largeFetchWarning", siteLang, { count: pendingLargeFetch.count })}</p>
+            <div className="large-fetch-warning-actions">
+              <button type="button" onClick={handleConfirmLargeFetch}>
+                {t("largeFetchConfirm", siteLang)}
+              </button>
+              <button type="button" onClick={handleCancelLargeFetch}>
+                {t("largeFetchCancel", siteLang)}
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        <ImportSheet onImport={handleImportSheet} busy={importBusy} error={importError} siteLang={siteLang} />
 
         <AddBlockControls siteLang={siteLang} onAddHeading={handleAddHeading} onAddText={handleAddText} onAddSpacer={handleAddSpacer} />
 

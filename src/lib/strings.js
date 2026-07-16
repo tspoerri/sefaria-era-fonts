@@ -98,6 +98,18 @@ export const STRINGS = {
     undoRemovedToast: "Source removed",
     undo: "Undo",
 
+    // Wave 2 — fetch safety & sheet ops
+    clearAll: "Clear all",
+    clearAllConfirm: "This will remove every block from this sheet. Continue?",
+    largeFetchWarning:
+      "That reference has about {count} segments — this may take a while and produce a very long sheet. Add it anyway, or narrow the range (e.g. a single chapter) and try again.",
+    largeFetchConfirm: "Add anyway",
+    largeFetchCancel: "Cancel",
+    importSheetPlaceholder: "Sefaria sheet URL or ID",
+    importSheetButton: "Import",
+    importSheetInvalidId: "Couldn't find a sheet URL or ID in that.",
+    importSheetNoSupportedSources: "That sheet has no sources this app can import.",
+
     // Wave D2 — Hebrew keyboard popup
     keyboardTitle: "Hebrew keyboard",
     keyboardClose: "Close keyboard",
@@ -205,6 +217,18 @@ export const STRINGS = {
     typeSpacer: "רווח",
     undoRemovedToast: "המקור הוסר",
     undo: "בטל",
+
+    // Wave 2 — fetch safety & sheet ops
+    clearAll: "נקה הכל",
+    clearAllConfirm: "פעולה זו תסיר את כל הבלוקים מדף זה. להמשיך?",
+    largeFetchWarning:
+      "למקור הזה יש כ-{count} קטעים — זה עשוי לקחת זמן וליצור דף ארוך מאוד. ניתן להוסיף בכל זאת, או לצמצם את הטווח (למשל פרק בודד) ולנסות שוב.",
+    largeFetchConfirm: "הוסף בכל זאת",
+    largeFetchCancel: "בטל",
+    importSheetPlaceholder: "כתובת URL או מזהה של דף מקורות בספריא",
+    importSheetButton: "ייבוא",
+    importSheetInvalidId: "לא נמצאה כתובת URL או מזהה של דף מקורות בטקסט זה.",
+    importSheetNoSupportedSources: "בדף המקורות הזה אין מקורות שניתן לייבא לאפליקציה זו.",
 
     // Wave D2 — Hebrew keyboard popup
     keyboardTitle: "מקלדת עברית",

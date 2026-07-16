@@ -9,6 +9,8 @@
 const TEXTS_BASE = 'https://www.sefaria.org/api/texts/'
 const INDEX_BASE = 'https://www.sefaria.org/api/v2/index/'
 const NAME_BASE = 'https://www.sefaria.org/api/name/'
+const SHAPE_BASE = 'https://www.sefaria.org/api/shape/'
+const SHEETS_BASE = 'https://www.sefaria.org/api/sheets/'
 
 // Fetch a text segment/range by ref, e.g. "Genesis 1:1" or "Rashi on Genesis 1:1".
 // Returns the raw API response: { he, text, ref, heRef, categories, primary_category,
@@ -74,6 +76,53 @@ export async function fetchIndex(indexTitle) {
 
   indexCache.set(indexTitle, result)
   return result
+}
+
+// SPEC.md Wave 2 item 5 (guard huge fetches): Sefaria's /api/shape/<ref>
+// endpoint returns per-node segment-COUNT metadata without the text content
+// itself, so a resolved ref's size can be estimated cheaply before ever
+// calling fetchText(). Returns the raw JSON (its shape varies with the ref —
+// see src/lib/fetchGuard.js's estimateSegmentCount for how it's parsed), or
+// null on any failure (missing ref, network error, unexpected response) —
+// like fetchIndex, this is a best-effort pre-check, so it never throws;
+// callers that get null back should fall back to just fetching normally
+// rather than blocking the user on an unknown size.
+export async function fetchShape(ref) {
+  try {
+    const url = `${SHAPE_BASE}${encodeURIComponent(ref)}`
+    const res = await fetch(url)
+    if (!res.ok) return null
+    const data = await res.json()
+    if (data && data.error) return null
+    return data
+  } catch (err) {
+    return null
+  }
+}
+
+// SPEC.md Wave 2 item 7 (import a Sefaria sheet): fetches a sheet's raw JSON
+// by numeric id. Unlike fetchIndex/fetchShape this throws on failure (an
+// explicit user-initiated import should surface an error, not fail silent) —
+// same contract as fetchText.
+export async function fetchSheet(id) {
+  const url = `${SHEETS_BASE}${encodeURIComponent(id)}`
+  let res
+  try {
+    res = await fetch(url)
+  } catch (err) {
+    throw new Error(`Could not reach Sefaria to import sheet "${id}". Check your connection and try again.`)
+  }
+
+  if (!res.ok) {
+    throw new Error(`Sefaria couldn't find sheet "${id}".`)
+  }
+
+  const data = await res.json()
+  if (data && data.error) {
+    throw new Error(`Sefaria error importing sheet "${id}": ${data.error}`)
+  }
+
+  return data
 }
 
 // Thin wrapper around Sefaria's name-resolution/autocomplete endpoint, used

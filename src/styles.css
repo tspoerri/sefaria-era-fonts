@@ -135,6 +135,28 @@ body {
   background: var(--hover-bg-2);
 }
 
+.clear-all-button {
+  flex-shrink: 0;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  border: 1px solid var(--input-border-strong);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.clear-all-button:hover:not(:disabled) {
+  background: var(--danger);
+  color: #fff;
+  border-color: var(--danger);
+}
+
+.clear-all-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 /* Icon cluster (dark mode / site language / keyboard stub / settings) */
 .icon-cluster {
   display: flex;
@@ -435,6 +457,78 @@ body {
 }
 
 .add-source-error {
+  margin: 0.5rem 0 0;
+  color: var(--error);
+  font-size: 0.9rem;
+}
+
+/* Large-fetch guard warning (Wave 2 item 5) */
+.large-fetch-warning {
+  margin: 0.75rem 0 1.5rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--danger);
+  border-radius: 6px;
+  background: var(--card-bg);
+  color: var(--fg);
+}
+
+.large-fetch-warning p {
+  margin: 0 0 0.6rem;
+  font-size: 0.9rem;
+}
+
+.large-fetch-warning-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.large-fetch-warning-actions button {
+  padding: 0.4rem 0.9rem;
+  font-size: 0.85rem;
+  border: 1px solid var(--input-border-strong);
+  border-radius: 6px;
+  background: var(--input-bg);
+  color: var(--fg);
+  cursor: pointer;
+}
+
+/* Import a Sefaria sheet (Wave 2 item 7) */
+.import-sheet {
+  margin-bottom: 1.5rem;
+}
+
+.import-sheet-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.import-sheet-row input {
+  flex: 1;
+  padding: 0.6rem 0.75rem;
+  font-size: 1rem;
+  border: 1px solid var(--input-border);
+  border-radius: 6px;
+  background: var(--input-bg);
+  color: var(--fg);
+}
+
+.import-sheet-row button {
+  padding: 0.6rem 1.1rem;
+  font-size: 1rem;
+  border: 1px solid var(--input-border-strong);
+  border-radius: 6px;
+  background: var(--button-bg);
+  color: var(--button-fg);
+  cursor: pointer;
+  min-width: 5.5rem;
+}
+
+.import-sheet-row button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.import-sheet-error {
   margin: 0.5rem 0 0;
   color: var(--error);
   font-size: 0.9rem;
@@ -1277,8 +1371,11 @@ body {
   }
 
   .add-source,
+  .import-sheet,
+  .large-fetch-warning,
   .add-block-controls,
   .print-button,
+  .clear-all-button,
   .icon-cluster,
   .settings-menu-overlay,
   .hebrew-keyboard,
