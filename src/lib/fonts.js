@@ -25,18 +25,19 @@ export const ERA_FONTS = {
     flag: null,
   },
   nach: {
-    family: '"Stam Ashkenaz CLM", serif',
+    family: '"Hebrew Square Isaiah", serif',
     source:
-      "No free Dead Sea Scroll / Isaiah-Habakkuk-scroll-style font was found; sharing Stam Ashkenaz CLM (Culmus Project, public/fonts/StamAshkenazCLM.ttf) as a placeholder.",
+      "Hebrew Square Isaiah (Culmus Project — Yoram Gnat, Ancient Semitic Scripts collection, public/fonts/HebrewSquareIsaiah.ttf), modeled on the Great Isaiah Scroll, Qumran (~2C BCE). " +
+      "Hebrew Square Habakkuk (public/fonts/HebrewSquareHabakkuk.ttf), modeled on the Habakkuk Commentary/Pesher, Qumran (~0 CE), is also shipped as a stylistic alternate from the same collection.",
     license: "GPL+FE (GNU GPL v2 with font exception)",
-    flag: "NEEDS-FONT",
+    flag: null,
   },
   tannaim: {
-    family: '"Keter YG", serif',
+    family: '"Hebrew Square BenKosba", serif',
     source:
-      "No free Ben Kosba / Bar Kokhba-letters-style font was found; using Keter YG (Culmus Project, public/fonts/KeterYG-Medium.ttf) as a placeholder.",
+      "Hebrew Square BenKosba (Culmus Project — Yoram Gnat, Ancient Semitic Scripts collection, public/fonts/HebrewSquareBenKosba.ttf), modeled on the Bar Kochba (Ben Kosba) letters, ~130 CE.",
     license: "GPL+FE (GNU GPL v2 with font exception)",
-    flag: "NEEDS-FONT",
+    flag: null,
   },
   amoraim: {
     family: '"Keter YG", serif',

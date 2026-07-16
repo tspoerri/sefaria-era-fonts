@@ -10,8 +10,8 @@ web-fonts loaded directly in `index.html`.
 | era | font shipped | file | license | flag / note |
 |---|---|---|---|---|
 | chumash | Stam Ashkenaz CLM | `public/fonts/StamAshkenazCLM.ttf` | GPL+FE (Culmus Project, Yoram Gnat) | — matches chart pick |
-| nach | Stam Ashkenaz CLM (shared) | `public/fonts/StamAshkenazCLM.ttf` | GPL+FE | **NEEDS-FONT** — no free Dead Sea Scroll / Isaiah-Habakkuk-style font found; reusing the Chumash font as placeholder |
-| tannaim | Keter YG (placeholder) | `public/fonts/KeterYG-Medium.ttf` | GPL+FE (Culmus Project, Yoram Gnat) | **NEEDS-FONT** — Ben Kosba / Bar Kokhba-letters style not freely available |
+| nach | Hebrew Square Isaiah | `public/fonts/HebrewSquareIsaiah.ttf` | GPL+FE (Culmus Project — Ancient Semitic Scripts, Yoram Gnat) | matches chart intent — modeled on the Great Isaiah Scroll, Qumran (~2C BCE); resolves prior **NEEDS-FONT** flag. Alternate: Hebrew Square Habakkuk (`public/fonts/HebrewSquareHabakkuk.ttf`, same license), modeled on the Habakkuk Commentary/Pesher, Qumran (~0 CE), also shipped |
+| tannaim | Hebrew Square BenKosba | `public/fonts/HebrewSquareBenKosba.ttf` | GPL+FE (Culmus Project — Ancient Semitic Scripts, Yoram Gnat) | matches chart intent — modeled on the Bar Kochba (Ben Kosba) letters, ~130 CE; resolves prior **NEEDS-FONT** flag |
 | amoraim | Keter YG | `public/fonts/KeterYG-Medium.ttf` | GPL+FE | **CHART-GAP** — chart has no surviving exemplar for this era; closest free font used anachronistically |
 | geonim | Keter YG | `public/fonts/KeterYG-Medium.ttf` | GPL+FE | matches chart pick (Aleppo Codex tradition); SBL Hebrew fallback skipped, see below |
 | rashi | Mekorot Rashi | `public/fonts/Mekorot-Rashi.ttf` | GPL (based on Culmus Drugulin CLM) | matches chart intent (free Rashi-script font) |
@@ -22,8 +22,21 @@ web-fonts loaded directly in `index.html`.
 
 License files for every self-hosted font are committed alongside it in `public/fonts/`:
 `StamAshkenazCLM-LICENSE.txt`, `KeterYG-LICENSE.txt`, `Shofar-LICENSE.txt`,
-`Mekorot-Rashi-LICENSE.txt`, `Ezra-SIL-OFL.txt`, plus the shared `GNU-GPL-v2.txt` text
-referenced by the Culmus Project's GPL+FE licenses.
+`Mekorot-Rashi-LICENSE.txt`, `Ezra-SIL-OFL.txt`, `HebrewSquareIsaiah-LICENSE.txt`,
+`HebrewSquareHabakkuk-LICENSE.txt`, `HebrewSquareBenKosba-LICENSE.txt`, plus the shared
+`GNU-GPL-v2.txt` text referenced by the Culmus Project's GPL+FE licenses.
+
+The three "Hebrew Square" fonts (Isaiah, Habakkuk, BenKosba) come from the same Culmus
+Project author (Yoram Gnat) as Stam Ashkenaz CLM and Keter YG, under the same GPL+FE
+license, but from a different sub-package: "Ancient Semitic Scripts" v0.06-1
+(mirrored at [aharonium/fonts](https://github.com/aharonium/fonts), also described at
+[culmus.sourceforge.io/ancient](https://culmus.sourceforge.io/ancient/index.html)). That
+collection ships period-accurate square-script faces modeled directly on Dead Sea Scrolls
+exemplars (Great Isaiah Scroll, Habakkuk Commentary/Pesher) and the Bar Kochba/Ben Kosba
+letters — a direct hit for the `nach` and `tannaim` chart intents that were previously
+unfulfilled. cmap coverage of the full Hebrew block (U+05D0–U+05EA, all 27 letter forms
+including finals) was confirmed via `fc-query` on all three files; live in-browser render
+verification is deferred to Wave 4.
 
 ## Skipped
 

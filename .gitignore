@@ -1,3 +1,11 @@
 node_modules/
 dist/
 .DS_Store
+
+# Local raw snapshot of Sefaria's /api/index/titles payload used by
+# scripts/build-lexicon.mjs --titles-file. The build script never writes it
+# into the repo (it emits only public/lexicon.json), but guard against a
+# hand-saved copy being committed — the 3 MB raw snapshot is a rebuildable
+# intermediate, not an asset (SPEC §L1).
+titles-raw.json
+*.titles-snapshot.json
