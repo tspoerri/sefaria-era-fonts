@@ -4,7 +4,7 @@
  * See docs/FONTS.md for full licensing detail and provenance of every file here.
  *
  * NOT included here (loaded via Google Fonts <link> in index.html instead):
- *   Frank Ruhl Libre, Noto Sans Hebrew
+ *   Frank Ruhl Libre, Noto Sans Hebrew, David Libre, Noto Rashi Hebrew
  *
  * NOT shipped (see docs/FONTS.md "skipped" notes):
  *   SBL Hebrew — SBL's license restricts commercial use (free for individual
@@ -71,6 +71,143 @@
 @font-face {
   font-family: "Hebrew Square BenKosba";
   src: url("/fonts/HebrewSquareBenKosba.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* --- Font-style matrix additions (casual/formal/accessible per era) --- */
+
+/* Hebrew Paleo Qumran — paleo-Hebrew (ktav Ivri), 11QpaleoLev scroll; chumash/casual */
+@font-face {
+  font-family: "Hebrew Paleo Qumran";
+  src: url("/fonts/QUMRAN.TTF") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Shlomo SemiStam — Shlomo Orbach semi-STAM face; chumash/accessible */
+@font-face {
+  font-family: "Shlomo SemiStam";
+  src: url("/fonts/ShlomoSemiStam.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 4Q417 — Qumran fragment hand (SQE / Univ. of Haifa); nach/casual */
+@font-face {
+  font-family: "4Q417";
+  src: url("/fonts/4Q417kern.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Makabi YG — modernized Isaiah-Scroll face with nikkud; nach/accessible */
+@font-face {
+  font-family: "Makabi YG";
+  src: url("/fonts/MakabiYG.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Taamey David CLM — David face with full nikkud+taamim; tannaim/accessible */
+@font-face {
+  font-family: "Taamey David CLM";
+  src: url("/fonts/TaameyDavidCLM-Medium.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Hebrew Square Bet Shearim — Bet She'arim necropolis inscriptions; amoraim/casual */
+@font-face {
+  font-family: "Hebrew Square Bet Shearim";
+  src: url("/fonts/BETSHEAR.TTF") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Hadasim CLM — full nikkud+taamim; amoraim/accessible */
+@font-face {
+  font-family: "Hadasim CLM";
+  src: url("/fonts/HadasimCLM-Regular.otf") format("opentype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Keter Aram Tsova — modeled on the Aleppo Codex; geonim/formal */
+@font-face {
+  font-family: "Keter Aram Tsova";
+  src: url("/fonts/KeterAramTsova.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Taamey Ashkenaz — medieval Ashkenazi square; rashi/formal */
+@font-face {
+  font-family: "Taamey Ashkenaz";
+  src: url("/fonts/TaameyAshkenaz-Medium.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* BenOr Rashi — rabbinic semi-cursive; rishonim/casual */
+@font-face {
+  font-family: "BenOr Rashi";
+  src: url("/fonts/BenOrRashiRegular.otf") format("opentype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Mashkit — mashket/vaybertaytsh semi-cursive print hand; acharonim/casual */
+@font-face {
+  font-family: "Mashkit";
+  src: url("/fonts/Mashkit.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Romm Vilna — evokes the Romm press Vilna Shas; acharonim/formal */
+@font-face {
+  font-family: "Romm Vilna";
+  src: url("/fonts/RommVilna-Regular.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Solitreo — Sephardic cursive (.ttf build with partial nikkud); acharei/casual */
+@font-face {
+  font-family: "Solitreo";
+  src: url("/fonts/Solitreo-Regular.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Frank Ruehl CLM — the 1908 face, full nikkud+taamim; acharei/formal */
+@font-face {
+  font-family: "Frank Ruehl CLM";
+  src: url("/fonts/FrankRuehlCLM-Medium.otf") format("opentype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Ktav Yad CLM — modern Israeli handwriting (MediumItalic is the family's regular cut); contemporary/casual */
+@font-face {
+  font-family: "Ktav Yad CLM";
+  src: url("/fonts/KtavYadCLM-MediumItalic.ttf") format("truetype");
   font-weight: normal;
   font-style: normal;
   font-display: swap;

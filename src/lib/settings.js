@@ -22,6 +22,7 @@ export const DEFAULTS = {
     modeTanakh: "sefer", // "klaf" | "sefer" | "simple" | "bare"
     modeOther: "sefer", // "sefer" | "bare"
   },
+  fontStyle: "formal", // "formal" | "casual" | "accessible" — era-font style (see src/lib/fonts.js)
   translationVersion: "Tanakh: The Holy Scriptures, published by JPS",
   showAttribution: true,
   siteLang: "en", // "en" | "he" — chrome language, not source content

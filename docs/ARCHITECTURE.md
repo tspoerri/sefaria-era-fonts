@@ -40,22 +40,32 @@ Priority order:
 
 Cache index lookups in a Map (module-level) to avoid refetching per source.
 
-## Era → font (src/lib/fonts.js) — from the Ktav Ashuri chart
-| era | chart's pick | what we ship | flag |
-|---|---|---|---|
-| chumash | Stam Ashkenaz (Reconstructs, Kesav Beis Yosef) | Stam Ashkenaz CLM (Culmus, GPL+FE) | — |
-| nach | Isaiah/Habakkuk scroll fonts (Reconstructs) | **no free DSS font found** → share Stam Ashkenaz CLM | NEEDS-FONT |
-| tannaim | Ben Kosba (Reconstructs, Bar Kokhba letters) | **not freely available** → Keter YG placeholder | NEEDS-FONT |
-| amoraim | — chart gap, no exemplar survives — | Keter YG (closest, anachronistic) | CHART-GAP |
-| geonim | Keter Aram Tzova / Keter YG / SBL Hebrew | Keter YG (free; Aleppo Codex); fallback SBL Hebrew | — |
-| rashi | Mekor Rashi YG / BenOr Rashi (Reconstructs) | Mekorot Rashi (free) if obtainable, else flag | maybe NEEDS-FONT |
-| rishonim | Koren Type $ (Reconstructs) | Shofar (Culmus, GPL+FE — Koren-inspired, chart-approved derivative) | SUBSTITUTE ($ Koren) |
-| acharonim | Ezra SIL (Reconstructs, Bomberg 1524) | Ezra SIL (SIL OFL, free) | — |
-| acharei | Frank Ruhl Libre (Reconstructs, 1908) | Frank Ruhl Libre (Google Fonts) | — |
-| contemporary | Noto Sans / Rubik / Heebo | Noto Sans Hebrew (Google Fonts) | — |
+## Era → font matrix (src/lib/fonts.js) — from the Ktav Ashuri chart
 
-Every entry in `fonts.js` carries `{ family, source, license, flag? }` so the UI can show
-a small ⚠ on substituted/placeholder fonts.
+Each era now maps THREE styles, selected by the global `fontStyle` setting
+("formal" default; per-source overridable):
+- **casual** — historical-casual/cursive hand (max accuracy, nikkud not required; may be null → STYLE-GAP fallback to formal)
+- **formal** — historical-formal/square book hand
+- **accessible** — modern readability with era vibes (nikkud required)
+
+| era | casual | formal | accessible |
+|---|---|---|---|
+| chumash | Hebrew Paleo Qumran (paleo-Hebrew, 11QpaleoLev) | Stam Ashkenaz CLM | Shlomo SemiStam |
+| nach | 4Q417 (Qumran fragment hand) | Hebrew Square Isaiah (+ Habakkuk alternate) | Makabi YG |
+| tannaim | Hebrew Square BenKosba (Bar Kochba letters) | Hebrew Square Habakkuk (~0 CE, slightly pre-tannaim) | Taamey David CLM |
+| amoraim | Hebrew Square Bet Shearim (necropolis inscriptions) | Keter YG — CHART-GAP | Hadasim CLM |
+| geonim | — STYLE-GAP (falls back to formal) | Keter Aram Tsova (Aleppo Codex) | Keter YG |
+| rashi | Mekorot Rashi | Taamey Ashkenaz (medieval Ashkenazi square) | Noto Rashi Hebrew (Google) |
+| rishonim | BenOr Rashi | Shofar — SUBSTITUTE ($ Koren) | David Libre (Google) |
+| acharonim | Mashkit (mashket/vaybertaytsh) | Romm Vilna (Vilna Shas) | Ezra SIL |
+| acharei | Solitreo (Sephardic cursive) | Frank Ruehl CLM (1908) | Frank Ruhl Libre (Google) |
+| contemporary | Ktav Yad CLM (Israeli handwriting) | David Libre (Google) | Noto Sans Hebrew (Google) |
+
+Every style entry in `fonts.js` carries `{ family, source, license, flag, nikkud, taamim }`
+(nikkud/taamim: "full" | "partial" | "none", from cmap scans of the shipped files) so the
+UI can show a small ⚠ on substituted/placeholder fonts. `getEraFont(era, style)` resolves
+an entry with fallback casual→formal→accessible (geonim casual is null) and lands on
+contemporary/accessible for unknown eras.
 
 ## File layout
 ```
@@ -194,6 +204,7 @@ localStorage key `sefaria-era-fonts-settings`. `DEFAULTS`:
 {
   titleBar: { language: "both", alignment: "sides", nikkud: true },
   body:     { language: "both", alignment: "sides", modeTanakh: "sefer", modeOther: "sefer" },
+  fontStyle: "formal",     // "formal" | "casual" | "accessible" — era-font style
   translationVersion: "Tanakh: The Holy Scriptures, published by JPS",
   showAttribution: true,
   siteLang: "en",         // "en" | "he" — chrome language, not source content
@@ -272,7 +283,7 @@ The old era badge + font-name caption were removed entirely. When
 preferred, i.e. `authorHe`/`authorEn` or the reverse, falling back to
 whichever exists) and date joined with " · " (author only, date only, or
 neither — whichever fields are present). Era still exclusively drives
-`fontFamily` via `ERA_FONTS[era]` (`src/lib/fonts.js`), unchanged from before.
+`fontFamily`, now via `getEraFont(era, fontStyle)` (`src/lib/fonts.js`).
 
 ## Constrained edit model (`src/lib/edits.js`)
 

@@ -1,0 +1,17 @@
+Font: Ktav Yad CLM (KtavYadCLM-MediumItalic.ttf)
+Package: Culmus Project — Fancy Fonts
+Author: Maxim Iorsh / Culmus Project
+Source: https://raw.githubusercontent.com/aharonium/fonts/master/Fonts/Hebrew%20Letters%20only/Culmus%20Project%20(GPL%20and%20GPL%2BFE)/Maxim%20Iorsh%20(GPL)/Fancy%20Fonts/ktav-yad/KtavYadCLM-MediumItalic.ttf
+(mirror of the Culmus Project)
+
+Modern Israeli cursive handwriting (ktav yad). The family only ships
+Italic-named weights; MediumItalic is its regular/book cut.
+
+-------------------------------------------------------------------------
+This package is distributed under the terms of GNU General Public License
+version 2 (see file GNU-GPL-v2.txt in this directory).
+
+NOTE: distributed in the Culmus "Maxim Iorsh (GPL)" collection; the
+collection LICENSE lists no font-embedding exception for this family, so
+it is treated as plain GPL v2 here.
+-------------------------------------------------------------------------

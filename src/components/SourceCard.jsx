@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { ERA_FONTS } from "../lib/fonts.js";
-import { layoutSegments, stripNikkud } from "../lib/display.js";
+import { getEraFont } from "../lib/fonts.js";
+import { layoutSegments, stripNikkud, stripTaamim } from "../lib/display.js";
 import { resolveSettings } from "../lib/settings.js";
 import { t } from "../lib/strings.js";
 import TextEditor from "./TextEditor.jsx";
@@ -26,6 +26,28 @@ function sanitizeHtml(html) {
 
 function sanitizeArray(arr) {
   return (arr || []).map(sanitizeHtml);
+}
+
+// Fonts without nikkud/taamim glyphs (fontEntry.nikkud/taamim === "none",
+// from the cmap scans recorded in src/lib/fonts.js) would render Sefaria's
+// pointed text as tofu boxes — strip whatever marks the active face can't
+// draw before handing blocks to HebrewBlocks. "partial" coverage is left
+// alone (mostly-complete faces degrade gracefully).
+function stripUnsupportedMarks(blocks, fontEntry) {
+  const dropNikkud = fontEntry.nikkud === "none";
+  const dropTaamim = dropNikkud || fontEntry.taamim === "none";
+  if (!dropTaamim) return blocks;
+  const clean = (s) => {
+    if (!s) return s;
+    let out = stripTaamim(s);
+    if (dropNikkud) out = stripNikkud(out);
+    return out;
+  };
+  return blocks.map((block) => {
+    if (block.type === "perekHeading") return { ...block, heText: clean(block.heText) };
+    if (!block.segments) return block;
+    return { ...block, segments: block.segments.map((seg) => ({ ...seg, he: clean(seg.he) })) };
+  });
 }
 
 function numClass(numStyle) {
@@ -214,8 +236,8 @@ export default function SourceCard({
   onUpdate,
 }) {
   const { era, error } = source;
-  const fontEntry = ERA_FONTS[era] || ERA_FONTS.contemporary;
   const effective = resolveSettings(settings, source.settingsOverride);
+  const fontEntry = getEraFont(era, effective.fontStyle);
   const siteLang = (settings && settings.siteLang) || "en";
   const [editingTitle, setEditingTitle] = useState(false);
   const [editingText, setEditingText] = useState(false);
@@ -349,7 +371,10 @@ export default function SourceCard({
             <div className={`source-card-body source-card-body-${effective.body.alignment}`}>
               {bodyLang !== "he" ? <EnglishBlocks blocks={blocks} /> : null}
               {bodyLang !== "en" ? (
-                <HebrewBlocks blocks={blocks} fontFamily={fontEntry.family} />
+                <HebrewBlocks
+                  blocks={stripUnsupportedMarks(blocks, fontEntry)}
+                  fontFamily={fontEntry.family}
+                />
               ) : null}
             </div>
           )}

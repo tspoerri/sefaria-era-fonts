@@ -1,0 +1,13 @@
+Font: Romm Vilna (RommVilna-Regular.ttf)
+Author: Ilan Elovitz
+Source: https://raw.githubusercontent.com/aharonium/fonts/master/Fonts/Hebrew%20Letters%20only/Ilan%20Elovitz%20(OFL)/RommVilna/RommVilna-Regular.ttf
+(mirror; distributed by the Open Siddur Project font pack, classified OFL)
+
+Evokes the square typeface of the Romm press's Vilna Shas.
+NOTE: the license file shipped alongside the font upstream is an OFL 1.1
+text whose copyright line was left from an unrelated template ("Cinzel",
+Natanael Gama) — the operative license is OFL 1.1 as classified by the
+distributing repo.
+
+This Font Software is licensed under the SIL Open Font License,
+Version 1.1. See file SIL-OFL-1.1.txt in this directory.

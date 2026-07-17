@@ -1,0 +1,15 @@
+Font: 4Q417 (4Q417kern.ttf)
+Author: Einat Tamir — Scripta Qumranica Electronica / Dead Sea Scrolls
+Project, University of Haifa
+Source: https://raw.githubusercontent.com/aharonium/fonts/master/Fonts/Hebrew%20Letters%20only/Dead%20Sea%20Scrolls%20Project%20(University%20of%20Haifa)/Scripta%20Qumranica%20Electronica/Einat%20Tamir%20(SIL%20OFL)/4Q417kern.ttf
+(mirror; distributed by the Open Siddur Project font pack, classified
+SIL OFL)
+
+Reproduces the scribal hand of Qumran fragment 4Q417 (Musar leMevin).
+Credit line requested by the project: "courtesy of the Dead Sea Scrolls
+Project, University of Haifa."
+NOTE: the upstream directory's LICENSE.txt is a usage README rather than
+a license text; the distributing repo classifies these fonts as SIL OFL.
+
+This Font Software is licensed under the SIL Open Font License,
+Version 1.1. See file SIL-OFL-1.1.txt in this directory.

@@ -1,0 +1,12 @@
+Font: Solitreo (Solitreo-Regular.ttf)
+Copyright 2021 The Solitreo Project Authors
+(https://github.com/ladinoprojects/solitreo)
+Author: Nathan Gross / the Solitreo Project (ladinoprojects)
+Source: https://github.com/ladinoprojects/solitreo (also mirrored at
+https://raw.githubusercontent.com/aharonium/fonts/master/Fonts/Hebrew%20Letters%20with%20Vowels%20(no%20cantillation)/Nathan%20Gross%20(OFL)/Solitreo.ttf)
+
+Sephardic (Solitreo) cursive hand. The .ttf build shipped here carries
+partial nikkud (15/17); the older .otf build has none and is not shipped.
+
+This Font Software is licensed under the SIL Open Font License,
+Version 1.1. See file SIL-OFL-1.1.txt in this directory.

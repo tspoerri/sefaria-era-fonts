@@ -1,0 +1,19 @@
+Font: Frank Ruehl CLM (FrankRuehlCLM-Medium.otf)
+Package: Culmus Project — Maxim Iorsh collection
+Author: Maxim Iorsh (Hebrew glyphs copyright 2002-2011); Latin glyphs from
+Century Schoolbook L, copyright 1999 (URW)++ Design & Development
+Source: https://raw.githubusercontent.com/aharonium/fonts/master/Fonts/Hebrew%20Letters%20with%20Vowels%20and%20Cantillation/Culmus%20Project%20(GPL%2BFE)/Maxim%20Iorsh%20(GPL)/FrankRuehl/FrankRuehlCLM-Medium.otf
+(mirror of the Culmus Project)
+
+Digital revival of the 1908 Frank-Ruehl typeface (Rafael Frank).
+
+-------------------------------------------------------------------------
+This package is distributed under the terms of GNU General Public License
+version 2 (see file GNU-GPL-v2.txt in this directory).
+
+NOTE: per the Culmus collection LICENSE, the Frank-Ruehl family is plain
+GPL v2 — its entry carries NO font-embedding exception. Embedding this
+file in a distributed document may place the document under the GPL;
+web @font-face use by this app serves the file unmodified alongside this
+license, which the GPL permits.
+-------------------------------------------------------------------------

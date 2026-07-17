@@ -1,0 +1,13 @@
+Font: Shlomo SemiStam (ShlomoSemiStam.ttf)
+Author: Shlomo Orbach
+Source: https://raw.githubusercontent.com/aharonium/fonts/master/Fonts/Hebrew%20Letters%20with%20Vowels%20and%20Cantillation/Shlomo%20Orbach%20(OFL)/ShlomoSemiStam.ttf
+(mirror; distributed by the Open Siddur Project font pack)
+
+Semi-STAM style face with full nikkud and taamim. NOTE: the file's
+internal name tables still read "Ezra SIL SR" — the Shlomo family is a
+glyph-substituted derivative built on the Ezra SIL SR sources, which the
+OFL permits (the files are distributed under the Shlomo name, not the
+reserved "Ezra"/"SIL" names).
+
+This Font Software is licensed under the SIL Open Font License,
+Version 1.1. See file SIL-OFL-1.1.txt in this directory.

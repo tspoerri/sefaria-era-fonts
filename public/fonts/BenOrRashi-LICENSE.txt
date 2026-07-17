@@ -1,0 +1,10 @@
+Font: BenOr Rashi (BenOrRashiRegular.otf)
+Author: David ben Or
+Source: https://raw.githubusercontent.com/aharonium/fonts/master/Fonts/Hebrew%20Letters%20with%20Vowels%20(no%20cantillation)/David%20ben%20Or%20(UBL)/BenOrRashiRegular.otf
+(mirror; distributed by the Open Siddur Project font pack)
+
+Rabbinic semi-cursive (Rashi-script family) face with full nikkud, no
+taamim.
+
+This Font Software is licensed under the Ubuntu Font Licence,
+Version 1.0. See file Ubuntu-Font-License.txt in this directory.

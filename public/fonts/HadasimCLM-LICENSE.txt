@@ -1,0 +1,25 @@
+Font: Hadasim CLM (HadasimCLM-Regular.otf)
+Package: Culmus Project — Basic Fonts
+Author: Yoram Gnat (Hadasim family copyright 2010; distributed in the
+Culmus "Maxim Iorsh (GPL)" collection)
+Source: https://raw.githubusercontent.com/aharonium/fonts/master/Fonts/Hebrew%20Letters%20with%20Vowels%20(no%20cantillation)/Culmus%20Project%20(GPL%20and%20GPL%2BFE)/Maxim%20Iorsh%20(GPL)/Basic%20Fonts/Hadasim/HadasimCLM-Regular.otf
+(mirror of the Culmus Project)
+
+Per the Culmus collection LICENSE, the Hadasim family carries the font
+(embedding) exception, i.e. GPL+FE. Latin/punctuation forms based on
+LiberationSerif (Ascender Corporation, 2007).
+
+-------------------------------------------------------------------------
+This package is distributed under the terms of GNU General Public License
+version 2 (see file GNU-GPL-v2.txt in this directory).
+-------------------------------------------------------------------------
+
+As a special exception, if you create a document which uses this font,
+and embed this font or unaltered portions of this font into the document,
+this font does not by itself cause the resulting document to be covered
+by the GNU General Public License. This exception does not however
+invalidate any other reasons why the document might be covered
+by the GNU General Public License. If you modify this font, you may extend
+this exception to your version of the font, but you are not obligated
+to do so. If you do not wish to do so, delete this exception statement
+from your version.

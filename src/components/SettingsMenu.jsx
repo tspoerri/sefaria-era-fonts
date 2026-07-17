@@ -132,6 +132,17 @@ export default function SettingsMenu({ settings, onChange, onClose, onResetAll }
             </label>
           ) : null}
           <label>
+            {t("fontStyle", siteLang)}
+            <select
+              value={settings.fontStyle}
+              onChange={(e) => onChange({ fontStyle: e.target.value })}
+            >
+              <option value="formal">{t("fontStyleFormal", siteLang)}</option>
+              <option value="casual">{t("fontStyleCasual", siteLang)}</option>
+              <option value="accessible">{t("fontStyleAccessible", siteLang)}</option>
+            </select>
+          </label>
+          <label>
             {t("tanakhMode", siteLang)}
             <select
               value={settings.body.modeTanakh}

@@ -1,0 +1,23 @@
+Font: Hebrew Paleo Qumran (QUMRAN.TTF)
+Package: Culmus Project — Ancient Semitic Scripts, version 0.06-1
+Author: Yoram Gnat
+Source: https://raw.githubusercontent.com/aharonium/fonts/master/Fonts/Hebrew%20Letters%20only/Culmus%20Project%20(GPL%20and%20GPL%2BFE)/Yoram%20Gnat%20(GPL%2BFE)/Ancient-Semitic-Scripts-0.06-1/Hebrew%20Paleo%20Qumran/QUMRAN.TTF
+(mirror of the Culmus Project; see also https://culmus.sourceforge.io/ancient/index.html)
+
+Per the package README: paleo-Hebrew (ktav Ivri) script, modeled on the
+paleo-Leviticus scroll 11QpaleoLev, Qumran.
+
+-------------------------------------------------------------------------
+This package is distributed under the terms of GNU General Public License
+version 2 (see file GNU-GPL-v2.txt in this directory).
+-------------------------------------------------------------------------
+
+As a special exception, if you create a document which uses this font,
+and embed this font or unaltered portions of this font into the document,
+this font does not by itself cause the resulting document to be covered
+by the GNU General Public License. This exception does not however
+invalidate any other reasons why the document might be covered
+by the GNU General Public License. If you modify this font, you may extend
+this exception to your version of the font, but you are not obligated
+to do so. If you do not wish to do so, delete this exception statement
+from your version.

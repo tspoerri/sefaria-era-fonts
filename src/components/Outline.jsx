@@ -3,24 +3,37 @@ import { t } from "../lib/strings.js";
 import { blockLabel } from "../lib/blocks.js";
 
 // Reads a per-source settings-override field, "" meaning "inherit from
-// global" (the field is simply absent from the override object).
+// global" (the field is simply absent from the override object). Pass
+// section === null for scalar top-level keys (e.g. fontStyle).
 function overrideValue(source, section, field) {
-  const value = source.settingsOverride && source.settingsOverride[section] && source.settingsOverride[section][field];
+  const holder = section === null
+    ? source.settingsOverride
+    : source.settingsOverride && source.settingsOverride[section];
+  const value = holder && holder[field];
   return value === undefined || value === null ? "" : String(value);
 }
 
 // Writes (or clears, for value === "") a single settings-override field,
 // pruning empty section/root objects back down to null so an all-inherited
 // source has settingsOverride === null again (matches the "reset" contract).
+// Pass section === null for scalar top-level keys (e.g. fontStyle).
 function withOverride(source, section, field, value, coerceBool) {
   const current = source.settingsOverride || {};
+  const next = { ...current };
+  if (section === null) {
+    if (value === "") {
+      delete next[field];
+    } else {
+      next[field] = coerceBool ? value === "true" : value;
+    }
+    return Object.keys(next).length === 0 ? null : next;
+  }
   const sectionObj = { ...(current[section] || {}) };
   if (value === "") {
     delete sectionObj[field];
   } else {
     sectionObj[field] = coerceBool ? value === "true" : value;
   }
-  const next = { ...current };
   if (Object.keys(sectionObj).length === 0) {
     delete next[section];
   } else {
@@ -72,6 +85,11 @@ function SourceSettingsPanel({ source, siteLang, onUpdate }) {
   const otherModeOptions = [
     { value: "sefer", label: t("modeSefer", siteLang) },
     { value: "bare", label: t("modeBare", siteLang) },
+  ];
+  const fontStyleOptions = [
+    { value: "formal", label: t("fontStyleFormal", siteLang) },
+    { value: "casual", label: t("fontStyleCasual", siteLang) },
+    { value: "accessible", label: t("fontStyleAccessible", siteLang) },
   ];
 
   return (
@@ -127,6 +145,13 @@ function SourceSettingsPanel({ source, siteLang, onUpdate }) {
         value={overrideValue(source, "body", "modeOther")}
         options={otherModeOptions}
         onChange={(v) => patch("body", "modeOther", v)}
+      />
+      <OverrideSelect
+        label={t("fontStyle", siteLang)}
+        siteLang={siteLang}
+        value={overrideValue(source, null, "fontStyle")}
+        options={fontStyleOptions}
+        onChange={(v) => patch(null, "fontStyle", v)}
       />
 
       <button
