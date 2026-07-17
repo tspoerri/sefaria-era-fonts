@@ -72,58 +72,55 @@ function SourceSettingsPanel({ source, siteLang, onUpdate }) {
     { value: "sides", label: t("alignmentSides", siteLang) },
     { value: "center", label: t("alignmentCenter", siteLang) },
   ];
-  const nikkudOptions = [
-    { value: "true", label: t("nikkud", siteLang) + ": on" },
-    { value: "false", label: t("nikkud", siteLang) + ": off" },
-  ];
-  const tanakhModeOptions = [
-    { value: "klaf", label: t("modeKlaf", siteLang) },
-    { value: "sefer", label: t("modeSefer", siteLang) },
-    { value: "simple", label: t("modeSimple", siteLang) },
-    { value: "bare", label: t("modeBare", siteLang) },
-  ];
-  const otherModeOptions = [
-    { value: "sefer", label: t("modeSefer", siteLang) },
-    { value: "bare", label: t("modeBare", siteLang) },
-  ];
   const fontStyleOptions = [
     { value: "formal", label: t("fontStyleFormal", siteLang) },
     { value: "casual", label: t("fontStyleCasual", siteLang) },
     { value: "accessible", label: t("fontStyleAccessible", siteLang) },
   ];
 
+  function boolOptions(labelKey) {
+    return [
+      { value: "true", label: t(labelKey, siteLang) + ": on" },
+      { value: "false", label: t(labelKey, siteLang) + ": off" },
+    ];
+  }
+
   return (
     <div className="outline-settings-panel">
-      <p className="outline-settings-heading">{t("titleBarSection", siteLang)}</p>
       <OverrideSelect
-        label={t("language", siteLang)}
+        label={t("fontStyle", siteLang)}
         siteLang={siteLang}
-        value={overrideValue(source, "titleBar", "language")}
-        options={languageOptions}
-        onChange={(v) => patch("titleBar", "language", v)}
+        value={overrideValue(source, null, "fontStyle")}
+        options={fontStyleOptions}
+        onChange={(v) => patch(null, "fontStyle", v)}
       />
-      <OverrideSelect
-        label={t("alignment", siteLang)}
-        siteLang={siteLang}
-        value={overrideValue(source, "titleBar", "alignment")}
-        options={alignmentOptions}
-        onChange={(v) => patch("titleBar", "alignment", v)}
-      />
-      <OverrideSelect
-        label={t("nikkud", siteLang)}
-        siteLang={siteLang}
-        value={overrideValue(source, "titleBar", "nikkud")}
-        options={nikkudOptions}
-        onChange={(v) => patch("titleBar", "nikkud", v, true)}
-      />
-
-      <p className="outline-settings-heading">{t("bodySection", siteLang)}</p>
       <OverrideSelect
         label={t("language", siteLang)}
         siteLang={siteLang}
         value={overrideValue(source, "body", "language")}
         options={languageOptions}
         onChange={(v) => patch("body", "language", v)}
+      />
+      <OverrideSelect
+        label={t("nikkud", siteLang)}
+        siteLang={siteLang}
+        value={overrideValue(source, "toggles", "nikkud")}
+        options={boolOptions("nikkud")}
+        onChange={(v) => patch("toggles", "nikkud", v, true)}
+      />
+      <OverrideSelect
+        label={t("taamim", siteLang)}
+        siteLang={siteLang}
+        value={overrideValue(source, "toggles", "taamim")}
+        options={boolOptions("taamim")}
+        onChange={(v) => patch("toggles", "taamim", v, true)}
+      />
+      <OverrideSelect
+        label={t("punctuation", siteLang)}
+        siteLang={siteLang}
+        value={overrideValue(source, "toggles", "punctuation")}
+        options={boolOptions("punctuation")}
+        onChange={(v) => patch("toggles", "punctuation", v, true)}
       />
       <OverrideSelect
         label={t("alignment", siteLang)}
@@ -133,25 +130,39 @@ function SourceSettingsPanel({ source, siteLang, onUpdate }) {
         onChange={(v) => patch("body", "alignment", v)}
       />
       <OverrideSelect
-        label={t("tanakhMode", siteLang)}
+        label={t("verseLineBreaks", siteLang)}
         siteLang={siteLang}
-        value={overrideValue(source, "body", "modeTanakh")}
-        options={tanakhModeOptions}
-        onChange={(v) => patch("body", "modeTanakh", v)}
+        value={overrideValue(source, "toggles", "verseLineBreaks")}
+        options={boolOptions("verseLineBreaks")}
+        onChange={(v) => patch("toggles", "verseLineBreaks", v, true)}
       />
       <OverrideSelect
-        label={t("otherMode", siteLang)}
+        label={t("chapterLineBreaks", siteLang)}
         siteLang={siteLang}
-        value={overrideValue(source, "body", "modeOther")}
-        options={otherModeOptions}
-        onChange={(v) => patch("body", "modeOther", v)}
+        value={overrideValue(source, "toggles", "chapterLineBreaks")}
+        options={boolOptions("chapterLineBreaks")}
+        onChange={(v) => patch("toggles", "chapterLineBreaks", v, true)}
       />
       <OverrideSelect
-        label={t("fontStyle", siteLang)}
+        label={t("chapterVerseNumbers", siteLang)}
         siteLang={siteLang}
-        value={overrideValue(source, null, "fontStyle")}
-        options={fontStyleOptions}
-        onChange={(v) => patch(null, "fontStyle", v)}
+        value={overrideValue(source, "toggles", "showNumbers")}
+        options={boolOptions("chapterVerseNumbers")}
+        onChange={(v) => patch("toggles", "showNumbers", v, true)}
+      />
+      <OverrideSelect
+        label={t("chapterHeadings", siteLang)}
+        siteLang={siteLang}
+        value={overrideValue(source, "toggles", "chapterHeadings")}
+        options={boolOptions("chapterHeadings")}
+        onChange={(v) => patch("toggles", "chapterHeadings", v, true)}
+      />
+      <OverrideSelect
+        label={t("titleNikkud", siteLang)}
+        siteLang={siteLang}
+        value={overrideValue(source, null, "titleNikkud")}
+        options={boolOptions("titleNikkud")}
+        onChange={(v) => patch(null, "titleNikkud", v, true)}
       />
 
       <button

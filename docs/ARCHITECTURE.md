@@ -179,7 +179,7 @@ item 3 — only sources get the delete guard).
   // ---- user-edit overlay (null = untouched) ----
   titleOverride,         // {en, he} (either may be null) or null
   heEdited, enEdited,    // edited segment arrays, or null
-  settingsOverride,      // partial settings object (titleBar/body sections), or null
+  settingsOverride,      // partial settings object with flat toggles, or null
 }
 ```
 
@@ -202,8 +202,19 @@ falls back to the originals.
 localStorage key `sefaria-era-fonts-settings`. `DEFAULTS`:
 ```js
 {
-  titleBar: { language: "both", alignment: "sides", nikkud: true },
-  body:     { language: "both", alignment: "sides", modeTanakh: "sefer", modeOther: "sefer" },
+  titleNikkud: true,   // title-bar nikkud display (scalar, not nested)
+  body: {
+    language: "both",  // "both" | "he" | "en"
+    alignment: "sides", // "sides" | "side-by-side"
+    tanakh: {
+      nikkud: true, taamim: true, punctuation: true,
+      verseLineBreaks: false, chapterLineBreaks: false, showNumbers: true, chapterHeadings: false
+    },
+    other: {
+      nikkud: true, taamim: true, punctuation: true,
+      verseLineBreaks: true, chapterLineBreaks: false, showNumbers: true, chapterHeadings: false
+    }
+  },
   fontStyle: "formal",     // "formal" | "casual" | "accessible" — era-font style
   translationVersion: "Tanakh: The Holy Scriptures, published by JPS",
   showAttribution: true,
@@ -216,64 +227,73 @@ localStorage key `sefaria-era-fonts-settings`. `DEFAULTS`:
 saved before a new key was added still gets that key's default);
 `saveSettings(next)` writes the whole object. `resolveSettings(global,
 perSourceOverride)` shallow-merges a source's `settingsOverride` over the
-global settings, one section (`titleBar`/`body`) at a time, or wholesale for
-scalar top-level keys — this is what `SourceCard` calls to get its
-"effective" settings, and what `Outline`'s per-source panel reads/writes via
-`withOverride` (which prunes empty section/root objects back to `null` so an
-all-inherited source has `settingsOverride === null` again).
+global settings, one section at a time, or wholesale for scalar top-level
+keys — this is what `SourceCard` calls to get its "effective" settings.
+`resolveBodyToggles(globalSettings, source)` handles the per-source toggle
+override merge: it selects `tanakh` or `other` from `body` based on
+`source.isTanakh`, then shallow-merges `source.settingsOverride.toggles`
+(flat, not nested under `body`) over it. This exists because per-source
+toggles live flat to prevent a single-toggle override from wiping the other
+six. Per-source panel reads/writes via `withOverride` (which prunes empty
+objects back to `null` so an all-inherited source has `settingsOverride === null` again).
 
 ## Display-mode pipeline (`src/lib/display.js`)
 
-Pure, unit-tested text transforms + layout, driven off Unicode ranges:
-`stripTaamim` (U+0591–05AF + meteg U+05BD), `stripNikkud` (U+05B0–05BC,
-U+05BF, U+05C1, U+05C2, U+05C7), `stripSofPassuk` (U+05C3). Petuchah/setumah
-markers arrive as a trailing `{פ}`/`{ס}` (or `(פ)`/`(ס)`) inside the segment
-text; `extractTrailingMarker` strips it and reports which kind it was (also
-normalizing stray `<br>` tags to spaces). `toHebrewNumeral(n)` converts an
-integer to a Hebrew numeral for perek headings (e.g. 1→א׳, 15→ט״ו, 16→ט״ז,
-119→קי״ט — the traditional 15/16 exceptions avoid spelling the
-Tetragrammaton; geresh for a single letter, gershayim before the last letter
-otherwise).
+Pure, unit-tested text transforms + layout. `layoutSegments(source, toggles)`
+takes a source and a 7-key toggle object `{nikkud, taamim, punctuation,
+verseLineBreaks, chapterLineBreaks, showNumbers, chapterHeadings}` and returns
+an array of render blocks: `{type: "perekHeading", perek, heText, enText}`,
+`{type: "line", segments: [{he, en, num, numStyle, isMarker?, isGap?}]}`, or
+`{type: "flow", segments: [{...}]}`. It uses `heEdited`/`enEdited` in preference
+to `heSegments`/`enSegments` when present.
 
-`layoutSegments(source, mode)` returns an array of render blocks —
-`{type: "perekHeading", perek, heText, enText}`, `{type: "line", segments:
-[{he, en, num, numStyle}]}`, or `{type: "flow", segments: [{he, en, num,
-numStyle, isMarker?, isGap?}]}` — using `heEdited`/`enEdited` in preference
-to `heSegments`/`enSegments` when present. `mode` is one of the four Tanakh
-modes when `source.isTanakh`, or one of two other-text modes otherwise; an
-unrecognized mode string falls back to `"sefer"` (the most
-information-preserving mode) in both branches.
+**Toggles and presets.** The 7 toggles control text decoration + structural layout:
+- **nikkud** — include Hebrew vowel marks (U+05B0–05BC, 05BF, 05C1, 05C2, 05C7)
+- **taamim** — include cantillation marks (U+0591–05AF + meteg U+05BD)
+- **punctuation** — include sof passuk (U+05C3); always on for non-Tanakh
+- **verseLineBreaks** — each verse/passuk is its own `line` block
+- **chapterLineBreaks** — each chapter is its own `line` block (moot if verseLineBreaks)
+- **showNumbers** — render segment/perek/passuk numbers inline
+- **chapterHeadings** — render perek headings (Tanakh only; only when
+  chapterLineBreaks is off and verseLineBreaks is off)
 
-**Tanakh modes** (`source.isTanakh`):
-- **klaf** — strips taamim, nikkud, and sof passuk; no passuk numbers.
-  One continuous `flow` block per petuchah break (petuchah → new block,
-  i.e. a visual line break); setumah → an inline zero-width `isGap` segment
-  (rendered as `<span class="setumah-gap">`, a wide inline gap) with no
-  פ/ס letters shown anywhere.
-- **sefer** — keeps taamim, nikkud, and sof passuk; a single continuous
-  `flow` block for the whole source. Petuchah/setumah render as an inline
-  `isMarker` segment holding the bare letter (פ or ס), styled
-  `faint-marker`. Passuk numbers are `small-faint`.
-- **simple** — strips taamim only (keeps nikkud + sof passuk). Each passuk
-  is its own `line` block; a `perekHeading` block (`heText`/`enText`, e.g.
-  "פרק ב׳"/"Chapter 2") precedes every chapter's first line. Passuk numbers
-  are `regular` size.
-- **bare** — strips taamim and nikkud, keeps sof passuk. One `flow` block
-  per perek (a new block starts whenever the perek number changes — no
-  perek heading is rendered, just a break between blocks). Passuk numbers
-  are `small-faint`.
+Presets (`TANAKH_PRESETS` / `OTHER_PRESETS` in `src/lib/settings.js`) combine
+toggles into named, user-facing choices:
 
-**Other-text modes** (non-Tanakh sources):
-- **sefer** — nikkud/taamim as delivered (nothing stripped), sof passuk
-  kept; every section is its own `line` block. Section numbers `small-faint`.
-- **bare** — nikkud stripped, taamim/sof passuk kept as delivered; one
-  continuous `flow` block. Section numbers `small-faint`, inline.
+**Tanakh presets** (toggles: nikkud/taamim/punctuation/verseLineBreaks/chapterLineBreaks/showNumbers/chapterHeadings):
+- **klaf** `F F F F F F F` — archival-minimal: strips all marks, no line breaks, no numbers
+- **sefer** `T T T F F T F` — book text: keeps marks, one flow block, inline verse numbers
+- **simple** `T F T T F T F` — readable: nikkud + sof passuk, verse per line, chapter headings
 
-English segments follow the same block structure (same `numStyle` per
-segment) and are never nikkud-stripped — only `<br>` normalization applies.
-`SourceCard` renders `HebrewBlocks`/`EnglishBlocks` from the same
-`layoutSegments()` output, independently deciding which language column(s)
-to show per the effective `body.language` setting.
+**Other-text presets**:
+- **sefer** `T T T T F T F` — book text: keeps marks, section per line, inline section numbers
+- **simple** `F T T F F T F` — readable (formerly "bare"): strips nikkud, section per flow block
+
+**Derived rules** (not toggled):
+- `numStyle` derives from `showNumbers` and `chapterHeadings`: no numbers → `"none"`;
+  numbers on + chapter headings → `"regular"`; otherwise → `"small-faint"`.
+- **Petuchah/setumah markers** (פ/ס) are always parsed (never user-toggleable).
+  `extractTrailingMarker` strips trailing `{פ}`/`{ס}` or `(פ)`/`(ס)` (tolerates
+  live-API wrapper markup like `<span class="mam-spi-pe">{פ}</span>`), normalizes
+  stray `<br>` tags to spaces. When `showNumbers` is off, markers render as a
+  silent `isGap` segment (petuchah forces a new `flow` block; setumah inserts
+  an invisible inline gap). When on, render as an inline `isMarker` segment
+  holding the letter (פ or ס), styled `faint-marker`.
+- **verseLineBreaks on** makes `chapterLineBreaks` and `chapterHeadings` moot
+  (every verse is already its own line).
+- Title bar language/alignment inherit from `body.*`; title bar's only separate
+  setting is `titleNikkud`.
+
+`toHebrewNumeral(n)` converts an integer to Hebrew numerals for chapter
+headings (e.g. 1→א׳, 15→ט״ו, 16→ט״ז, 119→קי״ט — traditional 15/16 exceptions
+avoid spelling the Tetragrammaton; geresh for single letter, gershayim
+before the last letter otherwise).
+
+English segments follow the same block structure (same `numStyle` per segment)
+and are never nikkud-stripped — only `<br>` normalization applies. `SourceCard`
+renders `HebrewBlocks`/`EnglishBlocks` from the same `layoutSegments()` output,
+independently deciding which language column(s) to show per the effective
+`body.language` setting.
 
 ## Attribution tags
 

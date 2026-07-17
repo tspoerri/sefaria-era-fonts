@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { getEraFont } from "../lib/fonts.js";
 import { layoutSegments, stripNikkud, stripTaamim } from "../lib/display.js";
-import { resolveSettings } from "../lib/settings.js";
+import { resolveSettings, resolveBodyToggles } from "../lib/settings.js";
 import { t } from "../lib/strings.js";
 import TextEditor from "./TextEditor.jsx";
 
@@ -246,7 +246,7 @@ export default function SourceCard({
   const hasEn = (source.enSegments || source.enEdited || []).some((s) => s && s.trim());
   const hasTextEdits = !!(source.heEdited || source.enEdited);
 
-  let titleLang = effective.titleBar.language;
+  let titleLang = effective.body.language;
   if (!hasHe && titleLang !== "en") titleLang = hasEn ? "en" : titleLang;
   if (!hasEn && titleLang === "en") titleLang = "he";
 
@@ -258,9 +258,9 @@ export default function SourceCard({
     source.titleOverride && source.titleOverride.en != null ? source.titleOverride.en : source.ref;
   let titleHe =
     source.titleOverride && source.titleOverride.he != null ? source.titleOverride.he : source.heRef;
-  if (!effective.titleBar.nikkud) titleHe = stripNikkud(titleHe || "");
+  if (!effective.titleNikkud) titleHe = stripNikkud(titleHe || "");
 
-  const mode = source.isTanakh ? effective.body.modeTanakh : effective.body.modeOther;
+  const toggles = resolveBodyToggles(settings, source);
   const sanitizedSource = {
     ...source,
     heSegments: sanitizeArray(source.heEdited || source.heSegments),
@@ -268,7 +268,7 @@ export default function SourceCard({
     heEdited: null,
     enEdited: null,
   };
-  const blocks = error ? [] : layoutSegments(sanitizedSource, mode);
+  const blocks = error ? [] : layoutSegments(sanitizedSource, toggles);
 
   const attributionAuthor =
     siteLang === "he" ? source.authorHe || source.authorEn : source.authorEn || source.authorHe;
@@ -278,7 +278,7 @@ export default function SourceCard({
   return (
     <div className="source-card">
       <div className="source-card-header">
-        <div className={`source-card-ref source-card-ref-${effective.titleBar.alignment}`}>
+        <div className={`source-card-ref source-card-ref-${effective.body.alignment}`}>
           <span className="source-card-ref-langs">
             {titleLang !== "he" ? <span className="source-card-ref-en">{titleEn}</span> : null}
             {titleLang !== "en" ? (

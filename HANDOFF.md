@@ -1,54 +1,38 @@
 # HANDOFF
 
-**Next action:** Open the app (`npm run dev`), switch the "Font style"
-setting between casual/formal/accessible on a few different-era sources
-(not just Genesis 1:1), and confirm the choices feel right — this batch
-was live-verified for correctness (renders, no tofu, no console errors)
-but not yet reviewed by Tamar for whether the actual font picks *feel*
-right per era.
+**Next action:** Commit the display-mode refactor (7 toggles replacing mode strings) and the updated docs.
 
-## Current state (2026-07-16, Wave 4: three-style era-font matrix, pushed)
+## Current state (2026-07-17, Wave 5: display-mode refactor, ready to commit)
 
-Pushed to `main` as `b17c281` on top of the Wave 1-3 batch (already on
-origin). `npm test`: 382 pass / 0 fail / 3 pre-existing skips. `npm run
-build`: clean.
+Refactor code-complete and live-verified in browser; documentation updated.
+Work UNCOMMITTED on `main`. `npm test`: 405 pass / 0 fail. `npm run build`: clean.
 
-### Wave 4 — three-style era-font matrix (`b17c281`)
-Replaced one-font-per-era with three options per era, per Tamar's
-refined brief: **casual** = maximum historical/geographic accuracy
-(novelty), nikkud not required; **formal** = accuracy + readability,
-nikkud a plus; **accessible** = modern legibility + "vibes," nikkud
-required. Niche/regional fonts (Ashkenazi vs. Sephardi, Qumran-fragment-
-specific faces) used where they improve authenticity, especially for
-casual.
+### Wave 5 — display-mode refactor (display toggles, not mode strings)
+Replaced mode strings (`klaf|sefer|simple|bare` for Tanakh, `sefer|bare` for
+other) with 7 independent boolean toggles: `nikkud, taamim, punctuation,
+verseLineBreaks, chapterLineBreaks, showNumbers, chapterHeadings`. This
+simplifies the UI/settings surface and decouples behavior from historical
+mode names.
 
-- `src/lib/fonts.js`: `ERA_FONTS[era]` is now `{ casual, formal,
-  accessible }`, each carrying real cmap-scanned `nikkud`/`taamim`
-  coverage (`"full"|"partial"|"none"`). New `getEraFont(era, style)`
-  helper falls back casual→formal (geonim has no surviving cursive
-  hand — flagged `"STYLE-GAP"`, a new flag in `FLAG_DESCRIPTIONS`).
-- `src/components/SourceCard.jsx`: font lookup now happens after
-  `resolveSettings()` so per-source overrides apply; new
-  `stripUnsupportedMarks()` strips nikkud/taamim the chosen font's
-  cmap can't draw, so under-supported historical faces (e.g. Paleo
-  Qumran) render clean instead of as tofu boxes.
-- `src/lib/settings.js`: new `DEFAULTS.fontStyle = "formal"` (keeps
-  old single-font behavior as the default look).
-- `src/components/SettingsMenu.jsx` / `strings.js`: new "Font style"
-  3-way selector (EN/HE labels), global setting.
-- `src/components/Outline.jsx`: per-source fontStyle override support
-  (subagent added this beyond the original spec — small, matches the
-  existing per-source override pattern for other settings).
-- 15 new font files in `public/fonts/` + license files (aharonium
-  repo + Tamar's local font library), 2 new Google Fonts links in
-  `index.html` (David Libre, Noto Rashi Hebrew).
-- `docs/FONTS.md` rewritten around the 3-column matrix;
-  `docs/ARCHITECTURE.md` era→font table updated to match.
-
-Notable scan corrections vs. my original spec (trust the code/docs,
-not my earlier claims): Makabi YG has **full** taamim (not none as
-assumed); Hadasim CLM is GPL+FE (not plain GPL); Frank Ruehl CLM and
-Ktav Yad CLM are plain GPL v2, **no** font exception.
+- `src/lib/display.js`: `layoutSegments(source, toggles)` now takes a 7-key
+  toggle object instead of a mode string. Presets exist in settings (`TANAKH_PRESETS`
+  / `OTHER_PRESETS`) mapping named choices to toggle combinations. All output
+  block/segment shapes unchanged.
+- `src/lib/settings.js`: `DEFAULTS` restructured. `titleBar` section gone;
+  `titleNikkud` is now a scalar at the root. `body` now nests per-language toggles:
+  `body.tanakh` and `body.other` each hold the 7 toggles. `TANAKH_PRESETS`
+  and `OTHER_PRESETS` exported for the settings UI. New `resolveBodyToggles`
+  function handles per-source toggle overrides (flat, not nested under `body`).
+  Old saved settings (pre-Wave-5) with `titleBar`/`modeTanakh`/`modeOther` keys
+  silently become inert cruft under `deepMerge`; display preferences reset to
+  new defaults on first load (text unaffected).
+- Petuchah/setumah markers now always parse (never user-toggleable). Previously
+  broke on live-API markup wrapper. Now tolerates `<span class="mam-spi-pe">{פ}</span>`.
+- `docs/ARCHITECTURE.md`: settings-store section rewritten around new DEFAULTS shape;
+  display-mode pipeline rewritten around `layoutSegments(source, toggles)` with
+  preset tables (Tanakh 3-preset / Other 2-preset).
+- All UI (settings, per-source override panel) adapted but visual/behavior
+  equivalence preserved: same Tanakh modes, same other-text modes, same output layout.
 
 ## What the app now has (cumulative, v2 + Waves 1-4)
 - **Font style**: casual/formal/accessible per-era font matrix (new),
@@ -88,25 +72,21 @@ Ktav Yad CLM are plain GPL v2, **no** font exception.
   layout, title bar and body.
 
 ## Open questions / for Tamar
-- **Font picks themselves are unreviewed by you** — I (Claude) verified
-  the plumbing (renders, no tofu, settings UI, no console errors) across
-  formal/casual/accessible on Genesis 1:1, but whether e.g. Paleo Qumran
-  is the right casual pick for Chumash, or whether the Ashkenazi/Sephardi
-  split lands correctly across eras, needs your eye.
-- Try a Gemara/Rishon source (not just Genesis) through all three font
-  styles — casual in particular may look very different on later eras
-  where the "niche accuracy" font pool is thinner.
-- Two license quirks worth knowing about if this ever gets redistributed
-  beyond a personal prototype: Frank Ruehl CLM and Ktav Yad CLM are plain
-  GPL v2 (no font exception, unlike most of the other GPL+FE fonts here).
-- Carried over from the Wave 1-3 batch, still open: a longer/denser text
-  through all four Tanakh/other-text display modes and both alignment
-  modes; mobile tap-select on an actual touchscreen (only emulated via
-  viewport width so far); Hebrew numerals in markers out of scope; bare
-  parsha names without a marker don't rewrite; phonetic keyboard single-key
-  choices may want tweaking; title/text editors can be open simultaneously;
-  side-by-side gutter layout untested with very mismatched HE/EN lengths.
+- **Settings migration:** Old saved sheets' display settings (pre-Wave-5)
+  silently reset to new defaults. Text is unaffected, but any custom display
+  preferences (mode strings, etc.) are lost. This is intentional (non-destructive
+  deep merge discards unknown keys), but worth knowing if sheets from earlier
+  versions are opened.
+- Carried over from prior waves: a longer/denser text through all three
+  Tanakh presets and both Other presets, and both alignment modes; mobile
+  tap-select on an actual touchscreen (only emulated via viewport width so
+  far); Hebrew numerals in markers out of scope; bare parsha names without a
+  marker don't rewrite; phonetic keyboard single-key choices may want tweaking;
+  title/text editors can be open simultaneously; side-by-side gutter layout
+  untested with very mismatched HE/EN lengths.
 
 ## Resume command
-cd ~/Documents/Projects/sefaria-era-fonts && cat HANDOFF.md
-npm run dev   # then the font-style spot-checks above
+cd ~/Documents/Projects/sefaria-era-fonts
+git status     # verify the display.js, settings.js, and ARCHITECTURE.md changes are there
+npm test       # should still pass 405
+npm run dev    # test the presets in the UI before committing

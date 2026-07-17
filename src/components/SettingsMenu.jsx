@@ -1,6 +1,26 @@
 import { useEffect, useRef, useState } from "react";
 import { t } from "../lib/strings.js";
-import { DEFAULTS } from "../lib/settings.js";
+import { DEFAULTS, TANAKH_PRESETS, OTHER_PRESETS, presetForToggles } from "../lib/settings.js";
+
+const TOGGLE_FIELDS = [
+  "nikkud",
+  "taamim",
+  "punctuation",
+  "verseLineBreaks",
+  "chapterLineBreaks",
+  "showNumbers",
+  "chapterHeadings",
+];
+
+const TOGGLE_LABEL_KEYS = {
+  nikkud: "nikkud",
+  taamim: "taamim",
+  punctuation: "punctuation",
+  verseLineBreaks: "verseLineBreaks",
+  chapterLineBreaks: "chapterLineBreaks",
+  showNumbers: "chapterVerseNumbers",
+  chapterHeadings: "chapterHeadings",
+};
 
 const VERSION_PRESETS = {
   jps: DEFAULTS.translationVersion,
@@ -37,12 +57,26 @@ export default function SettingsMenu({ settings, onChange, onClose, onResetAll }
     };
   }, [onClose]);
 
-  function patchTitleBar(patch) {
-    onChange({ titleBar: { ...settings.titleBar, ...patch } });
-  }
-
   function patchBody(patch) {
     onChange({ body: { ...settings.body, ...patch } });
+  }
+
+  function patchTanakh(patch) {
+    patchBody({ tanakh: { ...settings.body.tanakh, ...patch } });
+  }
+
+  function patchOther(patch) {
+    patchBody({ other: { ...settings.body.other, ...patch } });
+  }
+
+  function handleTanakhPreset(preset) {
+    if (preset === "custom") return;
+    patchBody({ tanakh: { ...TANAKH_PRESETS[preset] } });
+  }
+
+  function handleOtherPreset(preset) {
+    if (preset === "custom") return;
+    patchBody({ other: { ...OTHER_PRESETS[preset] } });
   }
 
   function handleVersionPreset(preset) {
@@ -58,6 +92,8 @@ export default function SettingsMenu({ settings, onChange, onClose, onResetAll }
   }
 
   const selectedPreset = presetForValue(settings.translationVersion);
+  const tanakhPreset = presetForToggles(TANAKH_PRESETS, settings.body.tanakh) || "custom";
+  const otherPreset = presetForToggles(OTHER_PRESETS, settings.body.other) || "custom";
 
   return (
     <div className="settings-menu-overlay">
@@ -70,41 +106,6 @@ export default function SettingsMenu({ settings, onChange, onClose, onResetAll }
         >
           ✕
         </button>
-
-        <section className="settings-section">
-          <h3>{t("titleBarSection", siteLang)}</h3>
-          <label>
-            {t("language", siteLang)}
-            <select
-              value={settings.titleBar.language}
-              onChange={(e) => patchTitleBar({ language: e.target.value })}
-            >
-              <option value="both">{t("languageBoth", siteLang)}</option>
-              <option value="he">{t("languageHebrew", siteLang)}</option>
-              <option value="en">{t("languageEnglish", siteLang)}</option>
-            </select>
-          </label>
-          {settings.titleBar.language === "both" ? (
-            <label>
-              {t("alignment", siteLang)}
-              <select
-                value={settings.titleBar.alignment}
-                onChange={(e) => patchTitleBar({ alignment: e.target.value })}
-              >
-                <option value="sides">{t("alignmentSides", siteLang)}</option>
-                <option value="center">{t("alignmentCenter", siteLang)}</option>
-              </select>
-            </label>
-          ) : null}
-          <label className="settings-checkbox">
-            <input
-              type="checkbox"
-              checked={settings.titleBar.nikkud}
-              onChange={(e) => patchTitleBar({ nikkud: e.target.checked })}
-            />
-            {t("nikkud", siteLang)}
-          </label>
-        </section>
 
         <section className="settings-section">
           <h3>{t("bodySection", siteLang)}</h3>
@@ -142,28 +143,49 @@ export default function SettingsMenu({ settings, onChange, onClose, onResetAll }
               <option value="accessible">{t("fontStyleAccessible", siteLang)}</option>
             </select>
           </label>
+        </section>
+
+        <section className="settings-section">
+          <h3>{t("tanachSection", siteLang)}</h3>
           <label>
-            {t("tanakhMode", siteLang)}
-            <select
-              value={settings.body.modeTanakh}
-              onChange={(e) => patchBody({ modeTanakh: e.target.value })}
-            >
-              <option value="klaf">{t("modeKlaf", siteLang)}</option>
-              <option value="sefer">{t("modeSefer", siteLang)}</option>
-              <option value="simple">{t("modeSimple", siteLang)}</option>
-              <option value="bare">{t("modeBare", siteLang)}</option>
+            <select value={tanakhPreset} onChange={(e) => handleTanakhPreset(e.target.value)}>
+              <option value="klaf">{t("presetKlaf", siteLang)}</option>
+              <option value="sefer">{t("presetSefer", siteLang)}</option>
+              <option value="simple">{t("presetSimple", siteLang)}</option>
+              <option value="custom">{t("presetCustom", siteLang)}</option>
             </select>
           </label>
+          {TOGGLE_FIELDS.map((field) => (
+            <label className="settings-checkbox" key={field}>
+              <input
+                type="checkbox"
+                checked={settings.body.tanakh[field]}
+                onChange={(e) => patchTanakh({ [field]: e.target.checked })}
+              />
+              {t(TOGGLE_LABEL_KEYS[field], siteLang)}
+            </label>
+          ))}
+        </section>
+
+        <section className="settings-section">
+          <h3>{t("otherSection", siteLang)}</h3>
           <label>
-            {t("otherMode", siteLang)}
-            <select
-              value={settings.body.modeOther}
-              onChange={(e) => patchBody({ modeOther: e.target.value })}
-            >
-              <option value="sefer">{t("modeSefer", siteLang)}</option>
-              <option value="bare">{t("modeBare", siteLang)}</option>
+            <select value={otherPreset} onChange={(e) => handleOtherPreset(e.target.value)}>
+              <option value="sefer">{t("presetSefer", siteLang)}</option>
+              <option value="simple">{t("presetSimple", siteLang)}</option>
+              <option value="custom">{t("presetCustom", siteLang)}</option>
             </select>
           </label>
+          {TOGGLE_FIELDS.map((field) => (
+            <label className="settings-checkbox" key={field}>
+              <input
+                type="checkbox"
+                checked={settings.body.other[field]}
+                onChange={(e) => patchOther({ [field]: e.target.checked })}
+              />
+              {t(TOGGLE_LABEL_KEYS[field], siteLang)}
+            </label>
+          ))}
         </section>
 
         <section className="settings-section">
@@ -195,6 +217,19 @@ export default function SettingsMenu({ settings, onChange, onClose, onResetAll }
               onChange={(e) => onChange({ showAttribution: e.target.checked })}
             />
             {t("showAttribution", siteLang)}
+          </label>
+
+        </section>
+
+        <section className="settings-section">
+          <h3>{t("sourceTitleSection", siteLang)}</h3>
+          <label className="settings-checkbox">
+            <input
+              type="checkbox"
+              checked={settings.titleNikkud}
+              onChange={(e) => onChange({ titleNikkud: e.target.checked })}
+            />
+            {t("titleNikkud", siteLang)}
           </label>
 
           <button type="button" className="settings-reset-all" onClick={handleResetAll}>

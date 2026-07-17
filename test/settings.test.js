@@ -26,23 +26,47 @@ function makeLocalStorageStub() {
 
 globalThis.localStorage = makeLocalStorageStub();
 
-const { loadSettings, saveSettings, DEFAULTS, resolveSettings } = await import(
-  "../src/lib/settings.js"
-);
+const {
+  loadSettings,
+  saveSettings,
+  DEFAULTS,
+  resolveSettings,
+  TANAKH_PRESETS,
+  OTHER_PRESETS,
+  presetForToggles,
+  resolveBodyToggles,
+} = await import("../src/lib/settings.js");
 
 describe("DEFAULTS", () => {
   test("has the documented shape", () => {
-    assert.equal(DEFAULTS.titleBar.language, "both");
-    assert.equal(DEFAULTS.titleBar.alignment, "sides");
-    assert.equal(DEFAULTS.titleBar.nikkud, true);
+    assert.equal(DEFAULTS.titleNikkud, true);
     assert.equal(DEFAULTS.body.language, "both");
-    assert.equal(DEFAULTS.body.modeTanakh, "sefer");
-    assert.equal(DEFAULTS.body.modeOther, "sefer");
+    assert.equal(DEFAULTS.body.alignment, "sides");
+    assert.deepEqual(DEFAULTS.body.tanakh, TANAKH_PRESETS.sefer);
+    assert.deepEqual(DEFAULTS.body.other, OTHER_PRESETS.sefer);
     assert.equal(DEFAULTS.showAttribution, true);
     assert.equal(DEFAULTS.siteLang, "en");
     assert.equal(DEFAULTS.darkMode, "system");
     assert.equal(DEFAULTS.keyboard.layout, "alephbet");
     assert.equal(DEFAULTS.keyboard.physical, "original");
+  });
+});
+
+describe("presetForToggles", () => {
+  test("matches each named Tanakh preset", () => {
+    assert.equal(presetForToggles(TANAKH_PRESETS, TANAKH_PRESETS.klaf), "klaf");
+    assert.equal(presetForToggles(TANAKH_PRESETS, TANAKH_PRESETS.sefer), "sefer");
+    assert.equal(presetForToggles(TANAKH_PRESETS, TANAKH_PRESETS.simple), "simple");
+  });
+
+  test("matches each named Other preset", () => {
+    assert.equal(presetForToggles(OTHER_PRESETS, OTHER_PRESETS.sefer), "sefer");
+    assert.equal(presetForToggles(OTHER_PRESETS, OTHER_PRESETS.simple), "simple");
+  });
+
+  test("returns null when no preset matches exactly", () => {
+    const custom = { ...TANAKH_PRESETS.sefer, nikkud: false };
+    assert.equal(presetForToggles(TANAKH_PRESETS, custom), null);
   });
 });
 
@@ -57,13 +81,13 @@ describe("loadSettings / saveSettings", () => {
   });
 
   test("round-trips a saved partial settings object, merged over DEFAULTS", () => {
-    saveSettings({ darkMode: "dark", body: { modeTanakh: "klaf" } });
+    saveSettings({ darkMode: "dark", body: { tanakh: { ...TANAKH_PRESETS.klaf } } });
     const loaded = loadSettings();
     assert.equal(loaded.darkMode, "dark");
-    assert.equal(loaded.body.modeTanakh, "klaf");
+    assert.deepEqual(loaded.body.tanakh, TANAKH_PRESETS.klaf);
     // untouched nested fields survive the merge
-    assert.equal(loaded.body.modeOther, DEFAULTS.body.modeOther);
-    assert.equal(loaded.titleBar.language, DEFAULTS.titleBar.language);
+    assert.deepEqual(loaded.body.other, DEFAULTS.body.other);
+    assert.equal(loaded.titleNikkud, DEFAULTS.titleNikkud);
   });
 
   test("round-trips a saved keyboard override, merged over DEFAULTS", () => {
@@ -87,18 +111,48 @@ describe("resolveSettings", () => {
     assert.equal(resolved, DEFAULTS);
   });
 
-  test("shallow-merges a per-source titleBar override over the global settings", () => {
-    const resolved = resolveSettings(DEFAULTS, { titleBar: { language: "he" } });
-    assert.equal(resolved.titleBar.language, "he");
+  test("shallow-merges a per-source body override over the global settings", () => {
+    const resolved = resolveSettings(DEFAULTS, { body: { language: "he" } });
+    assert.equal(resolved.body.language, "he");
     // sibling fields in the same section are preserved from the base
-    assert.equal(resolved.titleBar.alignment, DEFAULTS.titleBar.alignment);
-    assert.equal(resolved.titleBar.nikkud, DEFAULTS.titleBar.nikkud);
+    assert.equal(resolved.body.alignment, DEFAULTS.body.alignment);
+    assert.equal(resolved.body.tanakh, DEFAULTS.body.tanakh);
     // untouched top-level sections are preserved
-    assert.equal(resolved.body, DEFAULTS.body);
+    assert.equal(resolved.titleNikkud, DEFAULTS.titleNikkud);
   });
 
   test("overrides a scalar top-level field wholesale", () => {
     const resolved = resolveSettings(DEFAULTS, { showAttribution: false });
     assert.equal(resolved.showAttribution, false);
+  });
+});
+
+describe("resolveBodyToggles", () => {
+  test("picks the tanakh group when source.isTanakh is true", () => {
+    const resolved = resolveBodyToggles(DEFAULTS, { isTanakh: true });
+    assert.deepEqual(resolved, DEFAULTS.body.tanakh);
+  });
+
+  test("picks the other group when source.isTanakh is false", () => {
+    const resolved = resolveBodyToggles(DEFAULTS, { isTanakh: false });
+    assert.deepEqual(resolved, DEFAULTS.body.other);
+  });
+
+  test("a per-field override wins, untouched fields still inherit", () => {
+    const source = {
+      isTanakh: true,
+      settingsOverride: { toggles: { nikkud: false } },
+    };
+    const resolved = resolveBodyToggles(DEFAULTS, source);
+    assert.equal(resolved.nikkud, false);
+    // untouched fields still inherit from the base group
+    assert.equal(resolved.taamim, DEFAULTS.body.tanakh.taamim);
+    assert.equal(resolved.showNumbers, DEFAULTS.body.tanakh.showNumbers);
+    assert.equal(resolved.chapterHeadings, DEFAULTS.body.tanakh.chapterHeadings);
+  });
+
+  test("falls back to DEFAULTS body group when global settings is missing", () => {
+    const resolved = resolveBodyToggles(null, { isTanakh: false });
+    assert.deepEqual(resolved, DEFAULTS.body.other);
   });
 });
