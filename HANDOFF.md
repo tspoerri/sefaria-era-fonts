@@ -1,66 +1,64 @@
 # HANDOFF
 
-**Next action:** `git push origin main`. Everything in this batch (Waves 1-3)
-was already live-verified against the real Sefaria API in this session —
-network egress was NOT blocked this time (earlier sessions' sandboxes had
-blocked it; this one didn't) — so the push is the only thing left. After
-pushing, a normal-use spot check is still worthwhile: try a Gemara/Rishon
-source (not just Genesis) through the four Tanakh display modes plus the new
-"Side-by-side" alignment, and try the mobile tap-elide flow on an actual
-touch device (only viewport-width + browser matchMedia were exercised here).
+**Next action:** Open the app (`npm run dev`), switch the "Font style"
+setting between casual/formal/accessible on a few different-era sources
+(not just Genesis 1:1), and confirm the choices feel right — this batch
+was live-verified for correctness (renders, no tofu, no console errors)
+but not yet reviewed by Tamar for whether the actual font picks *feel*
+right per era.
 
-## Current state (2026-07-16, Waves 1-3 feature batch, on top of the v2 batch)
+## Current state (2026-07-16, Wave 4: three-style era-font matrix, pushed)
 
-Three more waves landed on `main` on top of the v2 batch (all local, NOT
-pushed): Wave 1 search/address parsing (`7a20e39`), Wave 2 fetch safety &
-sheet ops (`44f1c59`), Wave 3 RTL/alignment/elision (`f2bded9`). `npm test`:
-382 pass / 0 fail / 3 pre-existing skips. `npm run build`: clean.
+Pushed to `main` as `b17c281` on top of the Wave 1-3 batch (already on
+origin). `npm test`: 382 pass / 0 fail / 3 pre-existing skips. `npm run
+build`: clean.
 
-### Wave 1 — search & address parsing (`7a20e39`)
-Refinements to source-reference parsing/suggestions (see docs/SEARCH.md for
-the offline-lexicon + fold algorithm this builds on).
+### Wave 4 — three-style era-font matrix (`b17c281`)
+Replaced one-font-per-era with three options per era, per Tamar's
+refined brief: **casual** = maximum historical/geographic accuracy
+(novelty), nikkud not required; **formal** = accuracy + readability,
+nikkud a plus; **accessible** = modern legibility + "vibes," nikkud
+required. Niche/regional fonts (Ashkenazi vs. Sephardi, Qumran-fragment-
+specific faces) used where they improve authenticity, especially for
+casual.
 
-### Wave 2 — fetch safety & sheet ops (`44f1c59`)
-- **Huge-fetch guard** (`src/lib/fetchGuard.js`): estimates segment count
-  before fetching; a warning dialog blocks adding references that would
-  produce a very long sheet, with an explicit "add anyway."
-- **Clear-all confirm**: destructive action gated behind a confirm dialog.
-- **Sheet import** (`src/lib/sheetImport.js`, `ImportSheet.jsx`): paste a
-  Sefaria sheet URL/ID, imports its supported sources as blocks.
+- `src/lib/fonts.js`: `ERA_FONTS[era]` is now `{ casual, formal,
+  accessible }`, each carrying real cmap-scanned `nikkud`/`taamim`
+  coverage (`"full"|"partial"|"none"`). New `getEraFont(era, style)`
+  helper falls back casual→formal (geonim has no surviving cursive
+  hand — flagged `"STYLE-GAP"`, a new flag in `FLAG_DESCRIPTIONS`).
+- `src/components/SourceCard.jsx`: font lookup now happens after
+  `resolveSettings()` so per-source overrides apply; new
+  `stripUnsupportedMarks()` strips nikkud/taamim the chosen font's
+  cmap can't draw, so under-supported historical faces (e.g. Paleo
+  Qumran) render clean instead of as tofu boxes.
+- `src/lib/settings.js`: new `DEFAULTS.fontStyle = "formal"` (keeps
+  old single-font behavior as the default look).
+- `src/components/SettingsMenu.jsx` / `strings.js`: new "Font style"
+  3-way selector (EN/HE labels), global setting.
+- `src/components/Outline.jsx`: per-source fontStyle override support
+  (subagent added this beyond the original spec — small, matches the
+  existing per-source override pattern for other settings).
+- 15 new font files in `public/fonts/` + license files (aharonium
+  repo + Tamar's local font library), 2 new Google Fonts links in
+  `index.html` (David Libre, Noto Rashi Hebrew).
+- `docs/FONTS.md` rewritten around the 3-column matrix;
+  `docs/ARCHITECTURE.md` era→font table updated to match.
 
-### Wave 3 — RTL/alignment & elision (`f2bded9`)
-- **Item 8 — Hebrew keyboard RTL**: the alef-bet on-screen layout now
-  renders right-to-left (א top-right, matching a real Hebrew keyboard);
-  `keyboardLayouts.js#getLayoutDir` decides this per layout. Israeli/QWERTY
-  layouts stay LTR (they draw a physical keyboard's key *positions*, not an
-  alphabet chart).
-- **Item 9 — first-word-driven input direction**: every free-text field
-  (sheet title/author, AddSource's ref combobox, heading/text block inputs,
-  TextEditor's bracket/substitute field) now sets `dir` from the first
-  typed word's script (`src/lib/textDir.js#detectDir`), re-evaluating on
-  every keystroke — delete the first word and the field flips to match
-  whatever's now first.
-- **Item 10 — "center" alignment redefined as a bilingual gutter layout**:
-  Hebrew occupies the left half (right-aligned), English the right half
-  (left-aligned), straight edges down the middle. Applies to both the
-  title-bar and body alignment settings. UI label renamed "Side-by-side"
-  (EN)/"זה לצד זה" (HE); the internal settings key is still `"center"` —
-  no migration needed, it was never part of the sheet-content storage
-  schema (see `src/lib/settings.js`, not `sheetStorage.js`).
-- **Item 11 — English elision + mobile tap-select**: English range elision
-  was *already* implemented (`OPS_EN` already listed `"elide"` — the SPEC
-  note calling it Hebrew-only was stale); added an explicit regression test
-  instead of new logic. Added a genuinely new tap-start/tap-end selection
-  mode (`edits.js#nextTapSelection`, pure logic) for coarse-pointer/narrow
-  (<768px) viewports where drag-select doesn't work, with larger word hit
-  targets — replaces the mouse-drag handlers when active, doesn't touch them
-  otherwise.
+Notable scan corrections vs. my original spec (trust the code/docs,
+not my earlier claims): Makabi YG has **full** taamim (not none as
+assumed); Hadasim CLM is GPL+FE (not plain GPL); Frank Ruehl CLM and
+Ktav Yad CLM are plain GPL v2, **no** font exception.
 
-## What the app now has (cumulative, v2 + Waves 1-3)
+## What the app now has (cumulative, v2 + Waves 1-4)
+- **Font style**: casual/formal/accessible per-era font matrix (new),
+  global setting + per-source override, graceful mark-stripping for
+  under-supported faces.
 - **Settings menu** (gear, top right): per-section language (both/he/en),
   alignment (sides/side-by-side), title-bar nikkud, Tanakh display mode
   (klaf/sefer/simple/bare) + other-text mode (sefer/bare), translation
-  version (default JPS 1985 w/ fallback), attribution toggle, reset-all-mods.
+  version (default JPS 1985 w/ fallback), attribution toggle, font
+  style, reset-all-mods.
 - **Icon cluster**: dark mode (light/dark/system, print stays light), site
   chrome language EN/HE (strings.js dict, flips document dir), Hebrew
   keyboard popup (3 on-screen layouts — alef-bet now RTL — 3 physical remap
@@ -74,12 +72,12 @@ the offline-lexicon + fold algorithm this builds on).
   both languages support elide; zero-word deletion impossible; reset per
   source or global; mobile-friendly tap-to-select range on narrow viewports.
 - **Sidebar outline**: click-to-scroll, HTML5 drag-and-drop reorder,
-  per-source settings overrides (inherit-global aware), reset, delete;
-  collapses to hamburger <768px; hidden in print.
+  per-source settings overrides (inherit-global aware, now includes font
+  style), reset, delete; collapses to hamburger <768px; hidden in print.
 - **Delete guard**: undo toast (7s, restores position); card ✕ moved to
   ghost corner button away from ↑/↓.
 - **Attribution**: era/font badges gone; cards tag author · c. date (from
-  index authors/compDate). Era still picks the font.
+  index authors/compDate). Era still picks the font family per style.
 - **Search markers**: daf/amud, perek/passuk, siman/seif, parsha (54-entry
   table, fold-matched with collision tiebreak), Hebrew-script markers too;
   digits only.
@@ -90,26 +88,25 @@ the offline-lexicon + fold algorithm this builds on).
   layout, title bar and body.
 
 ## Open questions / for Tamar
-- Live-verified this session (Genesis 1:1, both alignment modes, English
-  elide, tap-select) but only a narrow slice — worth trying a longer/denser
-  text (a Gemara daf, a Rishon with footnotes) through all four Tanakh/
-  other-text display modes and both alignment modes before calling the
-  whole batch done.
-- Mobile tap-select was verified via a narrow browser viewport
-  (`matchMedia("(max-width: 768px)")` branch), not an actual touchscreen —
-  worth a real-device check for touch-event edge cases (e.g. does a
-  scroll-swipe starting on a word ever get misread as a tap).
-- **Hebrew numerals in markers** ("daf kuf") deliberately out of scope.
-- Bare parsha names without a "parsha" marker deliberately don't rewrite.
-- Phonetic keyboard single-key choices documented in keyboardLayouts.js
-  comments (e.g. ט on t, ת on f) — tweak if they feel wrong in use.
-- Title & text editors can be open at once (harmless; UX pass if it annoys).
-- The "side-by-side" gutter layout hasn't been checked against very
-  short/very long mismatched HE/EN content (e.g. HE present but EN blank
-  for a segment) — should degrade gracefully since it's flex-based, but
-  wasn't specifically exercised.
+- **Font picks themselves are unreviewed by you** — I (Claude) verified
+  the plumbing (renders, no tofu, settings UI, no console errors) across
+  formal/casual/accessible on Genesis 1:1, but whether e.g. Paleo Qumran
+  is the right casual pick for Chumash, or whether the Ashkenazi/Sephardi
+  split lands correctly across eras, needs your eye.
+- Try a Gemara/Rishon source (not just Genesis) through all three font
+  styles — casual in particular may look very different on later eras
+  where the "niche accuracy" font pool is thinner.
+- Two license quirks worth knowing about if this ever gets redistributed
+  beyond a personal prototype: Frank Ruehl CLM and Ktav Yad CLM are plain
+  GPL v2 (no font exception, unlike most of the other GPL+FE fonts here).
+- Carried over from the Wave 1-3 batch, still open: a longer/denser text
+  through all four Tanakh/other-text display modes and both alignment
+  modes; mobile tap-select on an actual touchscreen (only emulated via
+  viewport width so far); Hebrew numerals in markers out of scope; bare
+  parsha names without a marker don't rewrite; phonetic keyboard single-key
+  choices may want tweaking; title/text editors can be open simultaneously;
+  side-by-side gutter layout untested with very mismatched HE/EN lengths.
 
 ## Resume command
 cd ~/Documents/Projects/sefaria-era-fonts && cat HANDOFF.md
-npm test && npm run build && git push origin main
-npm run dev   # then the live spot-checks above
+npm run dev   # then the font-style spot-checks above
